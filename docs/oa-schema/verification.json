@@ -1,0 +1,11 @@
+{
+  "database": "a8v6",
+  "mysql_version": "5.7.26-log",
+  "relationship": "formson_3398.formmain_id = formmain_3396.ID",
+  "declared_foreign_key": false,
+  "sample": {
+    "sampled_rows": 200,
+    "matched_rows": 200
+  },
+  "sample_scope": "First 200 non-null formmain_id detail rows ordered by ID; not a full integrity audit."
+}

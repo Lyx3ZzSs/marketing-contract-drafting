@@ -1,0 +1,52 @@
+[project]
+name = "marketing-contract-backend"
+version = "0.1.0"
+description = "CRM contract drafting foundation"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "pydantic-settings>=2.7,<3",
+  "sqlalchemy>=2.0,<3",
+  "psycopg[binary]>=3.2,<4",
+  "alembic>=1.14,<2",
+  "redis>=5,<8",
+  "celery[redis]>=5.4,<6",
+  "langgraph>=1,<2",
+  "boto3>=1.35,<2",
+  "defusedxml>=0.7.1",
+  "pymysql>=1.1,<2",
+  "lxml>=6.1.3",
+  "pikepdf>=10.0,<11",
+  "pyjwt[crypto]>=2.10,<3",
+  "httpx>=0.28,<1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<10",
+ "httpx>=0.28,<1",
+ "ruff>=0.11",
+ "mypy>=1.15",
+ "types-redis",
+ "boto3-stubs[s3]",
+ "lxml-stubs>=0.5.1",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["auth: exercises real authentication dependencies", "integration: requires the scaffold PostgreSQL, Redis, API and worker"]

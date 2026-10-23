@@ -1,0 +1,93 @@
+name: marketing-contract-scaffold
+
+x-backend: &backend
+  build:
+    context: ../backend
+  image: marketing-contract-scaffold-backend:dev
+  env_file:
+    - path: ../.env
+      required: false
+  environment:
+    DATABASE_URL: postgresql+psycopg://contract:contract_dev@postgres:5432/contract_drafting
+    REDIS_URL: redis://redis:6379/0
+    PREVIEW_DIRECTORY: /var/lib/contract-previews
+  volumes: ["preview_data:/var/lib/contract-previews"]
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: contract_drafting
+      POSTGRES_USER: contract
+      POSTGRES_PASSWORD: contract_dev
+    ports: ["127.0.0.1:15432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contract -d contract_drafting"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["127.0.0.1:16379:6379"]
+    volumes: ["redis_data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres: { condition: service_healthy }
+  api:
+    <<: *backend
+    ports: ["127.0.0.1:18400:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "app.worker:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+  scheduler:
+    <<: *backend
+    command: ["celery", "-A", "app.worker:celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+  frontend:
+    build:
+      context: ../frontend
+    environment:
+      API_PROXY_TARGET: http://api:8000
+    ports: ["127.0.0.1:15173:5173"]
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public:ro
+      - ../frontend/index.html:/app/index.html:ro
+    depends_on:
+      api: { condition: service_healthy }
+  gateway:
+    image: nginx:1.28.0-alpine
+    profiles: ["gateway"]
+    ports: ["127.0.0.1:18088:80"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../frontend/dist:/usr/share/nginx/html:ro
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  postgres_data:
+  redis_data:
+  preview_data:

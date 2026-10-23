@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+**/node_modules/
+**/dist/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/*.pyc
+**/test-results/
+**/playwright-report/
+.DS_Store
+.local/
+*.tsbuildinfo
+
+# Locally rendered contract verification output
+/docs/verification/contract-preview/real-contract.pdf
