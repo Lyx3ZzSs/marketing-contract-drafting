@@ -18,7 +18,7 @@ export interface ReadingPosition {
 export const initialPosition = (): ReadingPosition => ({
   page: 1,
   offset: 0,
-  zoom: 'page',
+  zoom: 'width',
   sidebar: true,
 })
 

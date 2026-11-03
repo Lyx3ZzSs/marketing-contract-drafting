@@ -235,6 +235,19 @@
   overflow: hidden;
   flex-shrink: 0;
 }
+.pdf-page-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.pdf-page-placeholder {
+  display: block;
+  padding: 32px;
+  text-align: center;
+  color: #70858d;
+  font-size: 13px;
+}
 .pdf-sheet canvas {
   display: block;
   width: 100%;

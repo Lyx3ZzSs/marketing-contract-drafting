@@ -33,6 +33,7 @@ import '@/styles/document-preview.css'
 const store = useDocumentPreview()
 const dialog = ref<HTMLDialogElement | null>(null)
 const reader = ref<HTMLElement | null>(null)
+const thumbnails = ref<HTMLElement | null>(null)
 const pdf = shallowRef<PDFDocumentProxy | null>(null)
 const dimensions = ref<{ width: number; height: number }[]>([])
 const loading = ref(false)
@@ -61,6 +62,7 @@ let observer: ResizeObserver | undefined
 let abort: AbortController | undefined
 let task: ReturnType<typeof getDocument> | undefined
 let disposed = false
+let scrollFrame = 0
 const previousOverflow = document.body.style.overflow
 const previousFocus = document.activeElement
 onMounted(() => {
@@ -130,13 +132,17 @@ function go(value: number) {
   store.position = { ...store.position, page: target, offset: 0 }
 }
 function scroll() {
-  const el = reader.value
-  if (!el) return
-  const current = [...el.querySelectorAll<HTMLElement>('[data-page]')]
-    .filter((box) => box.offsetTop <= el.scrollTop + el.clientHeight * 0.3)
-    .at(-1)
-  if (current) page.value = Number(current.dataset.page)
-  remember()
+  if (scrollFrame) return
+  scrollFrame = requestAnimationFrame(() => {
+    scrollFrame = 0
+    const el = reader.value
+    if (!el) return
+    const current = [...el.querySelectorAll<HTMLElement>('[data-page]')]
+      .filter((box) => box.offsetTop <= el.scrollTop + el.clientHeight * 0.3)
+      .at(-1)
+    if (current) page.value = Number(current.dataset.page)
+    remember()
+  })
 }
 function close() {
   remember()
@@ -255,6 +261,7 @@ watch(
 )
 onBeforeUnmount(() => {
   disposed = true
+  cancelAnimationFrame(scrollFrame)
   loadGeneration++
   abort?.abort()
   observer?.disconnect()
@@ -338,7 +345,7 @@ onBeforeUnmount(() => {
               <ChevronsLeft :size="18" />
             </button>
           </div>
-          <div class="preview-thumbnail-list">
+          <div ref="thumbnails" class="preview-thumbnail-list">
             <button
               v-for="(dimension, index) in dimensions"
               :key="index"
@@ -354,6 +361,7 @@ onBeforeUnmount(() => {
                 :width="dimension.width"
                 :height="dimension.height"
                 :scale="110 / dimension.width"
+                :scroll-root="thumbnails"
                 thumbnail
                 @error="loadError = $event"
               /><span>{{ index + 1
@@ -447,6 +455,7 @@ onBeforeUnmount(() => {
                 :width="dimension.width"
                 :height="dimension.height"
                 :scale="scale"
+                :scroll-root="reader"
                 @error="loadError = $event"
               />
             </div>
