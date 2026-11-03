@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { lookupOa, readOaSummary, type OaCandidate, type OaSummary } from '@/lib/oa'
 import { useContractPrototype } from './contract-prototype'
 import type { ContractItem } from '@/data/contract-form'
+import type { PaymentTerm } from '@/lib/payment-terms'
 
 export const useOaContract = defineStore('oa-contract', () => {
   const contract = useContractPrototype()
@@ -11,9 +12,24 @@ export const useOaContract = defineStore('oa-contract', () => {
   const candidates = ref<OaCandidate[]>([])
   const result = ref<OaSummary | null>(null)
   const items = ref<ContractItem[]>([])
+  const copiedPaymentTerms = ref<PaymentTerm[]>([])
+  function copyPayment(item: ContractItem): boolean {
+    if (!items.value.includes(item) || !item.paymentTerms?.length) return false
+    copiedPaymentTerms.value = item.paymentTerms.map(term => ({ ...term }))
+    return true
+  }
+  function pastePayment(item: ContractItem): boolean {
+    if (!items.value.includes(item) || !copiedPaymentTerms.value.length) return false
+    item.paymentTerms = copiedPaymentTerms.value.map(term => ({ ...term }))
+    return true
+  }
+  // Keep copied settings across pagination and tab changes, but isolate OA records.
+  watch(() => result.value?.record.id, (id, previous) => {
+    if (id !== previous) copiedPaymentTerms.value = []
+  }, { flush: 'sync' })
   let request = 0
   let controller: AbortController | undefined
-  const savedRemarks = new Map<string, Record<string, string>>()
+  const savedEdits = new Map<string, Record<string, Pick<ContractItem, 'remarks' | 'paymentTerms'>>>()
 
   function cancel() {
     request++
@@ -22,7 +38,12 @@ export const useOaContract = defineStore('oa-contract', () => {
     candidates.value = []
   }
   function invalidate() {
-    if (result.value) savedRemarks.set(result.value.record.id, Object.fromEntries(items.value.map(item => [item.id, item.remarks])))
+    if (result.value) {
+      savedEdits.set(result.value.record.id, Object.fromEntries(items.value.map(item => [item.id, {
+        remarks: item.remarks,
+        paymentTerms: (item.paymentTerms ?? []).map(term => ({ ...term })),
+      }])))
+    }
     cancel()
     error.value = ''
     result.value = null
@@ -30,7 +51,7 @@ export const useOaContract = defineStore('oa-contract', () => {
     contract.values.amount = ''
     contract.values.currency = ''
   }
-  watch(() => contract.values.number, () => { invalidate(); savedRemarks.clear() }, { flush: 'sync' })
+  watch(() => contract.values.number, () => { invalidate(); savedEdits.clear(); copiedPaymentTerms.value = [] }, { flush: 'sync' })
 
   function apply(summary: OaSummary) {
     if (summary.record.serial_number !== contract.values.number?.trim()) {
@@ -46,7 +67,8 @@ export const useOaContract = defineStore('oa-contract', () => {
       hardwareAmount: project.hardware_amount,
       softwareServiceAmount: project.software_service_amount,
       otherSoftwareServiceAmount: project.other_software_service_amount,
-      remarks: savedRemarks.get(summary.record.id)?.[project.id] ?? '',
+      remarks: savedEdits.get(summary.record.id)?.[project.id]?.remarks ?? '',
+      paymentTerms: savedEdits.get(summary.record.id)?.[project.id]?.paymentTerms.map(term => ({ ...term })) ?? [],
     }))
     candidates.value = []
     error.value = ''
@@ -104,5 +126,5 @@ export const useOaContract = defineStore('oa-contract', () => {
       if (current()) receive(summary)
     })
   }
-  return { busy, error, candidates, result, items, search, choose, cancel }
+  return { busy, error, candidates, result, items, copiedPaymentTerms, copyPayment, pastePayment, search, choose, cancel }
 })

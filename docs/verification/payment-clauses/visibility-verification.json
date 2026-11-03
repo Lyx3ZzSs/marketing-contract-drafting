@@ -1,0 +1,90 @@
+{
+  "source_sha256": "094d95c7471ba6295ca7f0d41fe587518c37d584c410eb398846cd17d62463f8",
+  "project_count": 3,
+  "contract_total": "255000.00",
+  "cases": [
+    {
+      "name": "original-payments",
+      "seconds": 1.183,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.1 预付款：合同总价xx%，即人民币 0.00元（大写：圆整）。",
+        "5.2 到货款：合同总价的xx%，即人民币 00.00元（大写：圆整）。 ",
+        "5.3 验收款：合同总价的xx%，即人民币    元（大写：    圆整）。 ",
+        "5.4 质保金：合同总价的xx%，即人民币 00.00元（大写： 圆整）。"
+      ],
+      "pdf_sha256": "b913eeab04eeb44ecebe1fa90a50d17550cd20c4024d47735983ed9f2475f5d0",
+      "only_payment_slots_and_omitted_nodes_changed": true,
+      "omitted_paragraph_indices": [],
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    },
+    {
+      "name": "payments-advance-only",
+      "seconds": 1.134,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.1 预付款：合同总价100%，即人民币 255000.00元（大写：贰拾伍万伍仟圆整）。"
+      ],
+      "pdf_sha256": "b4c4452eb3be19af309981a6ad71f8fa2726a47f1ec47b7f2ff61de61a693b00",
+      "only_payment_slots_and_omitted_nodes_changed": true,
+      "omitted_paragraph_indices": [
+        107,
+        108,
+        109,
+        110,
+        111,
+        112
+      ],
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    },
+    {
+      "name": "payments-30-30-30-10",
+      "seconds": 1.144,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.1 预付款：合同总价30%，即人民币 76500.00元（大写：柒万陆仟伍佰圆整）。",
+        "5.2 到货款：合同总价的30%，即人民币 76500.00元（大写：柒万陆仟伍佰圆整）。 ",
+        "5.3 验收款：合同总价的30%，即人民币76500.00元（大写：    柒万陆仟伍佰圆整）。 ",
+        "5.4 质保金：合同总价的10%，即人民币 25500.00元（大写： 贰万伍仟伍佰圆整）。"
+      ],
+      "pdf_sha256": "1276c5916d088551c94b5953a4d57456b63762e57d665965d9282b1453b16861",
+      "only_payment_slots_and_omitted_nodes_changed": true,
+      "omitted_paragraph_indices": [],
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    },
+    {
+      "name": "payments-90-10",
+      "seconds": 1.139,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.3 验收款：合同总价的90%，即人民币229500.00元（大写：    贰拾贰万玖仟伍佰圆整）。 ",
+        "5.4 质保金：合同总价的10%，即人民币 25500.00元（大写： 贰万伍仟伍佰圆整）。"
+      ],
+      "pdf_sha256": "a44e68bc2f712e7ed052b47b39eda581e2eb5232434f77bf94a0fe218f704205",
+      "only_payment_slots_and_omitted_nodes_changed": true,
+      "omitted_paragraph_indices": [
+        105,
+        106,
+        107,
+        108
+      ],
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    }
+  ]
+}

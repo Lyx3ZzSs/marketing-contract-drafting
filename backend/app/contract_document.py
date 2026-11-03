@@ -12,11 +12,13 @@ from zipfile import ZipFile
 from lxml import etree as ET
 
 from app.contract_values import MaterialSummary
+from app.payment_terms import PaymentValue
 from app.station_names import KNOWN_TEMPLATE_SHA, WIND_COVER
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
-BINDING_VERSION = "wind-purchase-v1"
+BINDING_VERSION = "wind-purchase-v3-payment-visibility"
+PAYMENT_PARAGRAPHS = (105, 107, 109, 111)
 # Manual clause editing is paused until business rules are confirmed.
 MANUAL_EDITING_ENABLED = False
 
@@ -44,10 +46,10 @@ SOURCES = {
     72: ("software_name", "配套软件名称"),
     82: ("software_name", "价格说明产品名称"),
     85: ("software_name", "乙方义务产品名称"),
-    105: ("manual", "预付款比例"),
-    107: ("manual", "到货款比例"),
-    109: ("manual", "验收款比例"),
-    111: ("manual", "质保金比例"),
+    105: ("payment", "预付款比例"),
+    107: ("payment", "到货款比例"),
+    109: ("payment", "验收款比例"),
+    111: ("payment", "质保金比例"),
 }
 
 
@@ -173,6 +175,46 @@ def validate_manual(binding: Binding, value: str) -> None:
             raise ValueError(f"{binding.label}应为 0% 至 100%（最多两位小数）")
 
 
+def replace_text_range(paragraph: ET._Element, start: int, end: int, value: str) -> None:
+    """Replace only text in a slot, retaining every run, property and fixed suffix."""
+    offset = 0
+    inserted = False
+    for node in paragraph.iter(W + "t"):
+        original = node.text or ""
+        next_offset = offset + len(original)
+        if offset < end and next_offset > start:
+            left, right = max(0, start - offset), min(len(original), end - offset)
+            node.text = original[:left] + (value if not inserted else "") + original[right:]
+            node.set(XML_SPACE, "preserve")
+            inserted = True
+        offset = next_offset
+    if not inserted:
+        raise ValueError("付款字段占位与模板不匹配，请检查模板版本")
+
+
+def fill_payment_paragraph(paragraph: ET._Element, payment: PaymentValue) -> None:
+    original = text(paragraph)
+    match = re.fullmatch(
+        r"5\.[1-4] .+?合同总价的?(?P<percentage>xx%)，即人民币"
+        r"(?P<amount>[\d. ]+)元（大写：(?P<uppercase> *圆整)）。 *",
+        original,
+    )
+    if match is None or "".join(node.text or "" for node in paragraph.iter(W + "t")) != original:
+        raise ValueError("付款字段占位与模板不匹配，请检查模板版本")
+    replacements = {
+        "percentage": payment.percentage + "%",
+        "amount": payment.amount,
+        "uppercase": payment.uppercase,
+    }
+    # Right-to-left replacement keeps all remaining offsets relative to the original.
+    for key in ("uppercase", "amount", "percentage"):
+        start, end = match.span(key)
+        slot = match.group(key)
+        if slot.strip():
+            start += len(slot) - len(slot.lstrip(" "))
+        replace_text_range(paragraph, start, end, replacements[key])
+
+
 def build_document(
     data: bytes,
     config: dict[str, bool] | None,
@@ -180,6 +222,7 @@ def build_document(
     contract_name: str,
     material: MaterialSummary | None,
     manual: dict[str, str],
+    payments: tuple[PaymentValue, ...] | None = None,
 ) -> tuple[ET._Element, dict[ET._Element, dict[str, Any]]]:
     supported = hashlib.sha256(data).hexdigest() == KNOWN_TEMPLATE_SHA
     root = read_root(data)
@@ -214,6 +257,9 @@ def build_document(
             uppercase=material.uppercase,
         )
     for binding in bindings:
+        if binding.paragraph in PAYMENT_PARAGRAPHS and binding.id not in manual:
+            # Keep original runs intact; payment slots are filled separately below.
+            continue
         runs = list(paragraphs[binding.paragraph].iter(W + "r"))
         value = (
             manual.get(binding.id, binding.original)
@@ -249,6 +295,18 @@ def build_document(
         replace_paragraph(
             paragraphs[81], f"人民币：{material.total}元（大写：{material.uppercase}）"
         )
+    if payments is not None:
+        if not supported or len(payments) != len(PAYMENT_PARAGRAPHS):
+            raise ValueError("当前模板不支持付款字段填充")
+        for index, payment in zip(PAYMENT_PARAGRAPHS, payments, strict=True):
+            if payment.percentage == "0":
+                # Each fixed template node consists of its amount line and conditions.
+                for paragraph in paragraphs[index : index + 2]:
+                    parent = paragraph.getparent()
+                    assert parent is not None
+                    parent.remove(paragraph)
+            else:
+                fill_payment_paragraph(paragraphs[index], payment)
     return root, fields
 
 

@@ -1,3 +1,5 @@
+import type { PaymentTerm } from '@/lib/payment-terms'
+
 // Project fields start empty. Currency is resolved from OA; templates load from the API.
 export const contractFields = [
   { key: 'number', label: '合同编号', kind: 'text', value: '' },
@@ -14,6 +16,7 @@ export interface ContractItem {
   softwareServiceAmount: string | null
   otherSoftwareServiceAmount: string | null
   remarks: string
+  paymentTerms: PaymentTerm[]
 }
 
 export interface ContractAttachment {

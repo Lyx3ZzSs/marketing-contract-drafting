@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { isAdmin } from '@/lib/auth'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ChevronDown, Settings } from '@lucide/vue'
-import { contractFields } from '@/data/contract-form'
+import { ChevronDown, Settings, SquarePen, Copy, ClipboardPaste } from '@lucide/vue'
+import { contractFields, type ContractItem } from '@/data/contract-form'
 import { useContractPrototype } from '@/stores/contract-prototype'
 import ContractTabs from './ContractTabs.vue'
 import ContractPagination from './ContractPagination.vue'
@@ -10,11 +10,25 @@ import OaLookupDialog from './OaLookupDialog.vue'
 import { useOaContract } from '@/stores/oa-contract'
 import { formatRmb } from '@/lib/oa'
 import { useCoverName } from '@/stores/cover-name'
+import PaymentTermsDialog from './PaymentTermsDialog.vue'
+import { paymentSummary, type PaymentTerm } from '@/lib/payment-terms'
 const store = useContractPrototype()
 const oa = useOaContract()
 const naming = useCoverName()
 onBeforeUnmount(() => oa.cancel())
-const columns = ['软著名称', '硬件金额', '软件+服务金额', '其他软件+服务金额', '备注']
+const columns = ['软著名称', '硬件金额', '软件+服务金额', '其他软件+服务金额', '付款方式', '备注']
+const paymentItem = ref<ContractItem | null>(null)
+const paymentFeedback = ref('')
+function copyPayment(item: ContractItem) {
+  if (oa.copyPayment(item)) paymentFeedback.value = '已复制付款方式，可在其他标的右侧点击粘贴。'
+}
+function pastePayment(item: ContractItem) {
+  if (oa.pastePayment(item)) paymentFeedback.value = `已粘贴到第 ${oa.items.indexOf(item) + 1} 条合同标的，点击摘要可继续编辑。`
+}
+watch(() => oa.items, () => { paymentItem.value = null; paymentFeedback.value = '' }, { flush: 'sync' })
+function savePayment(terms: PaymentTerm[]) {
+  if (paymentItem.value && oa.items.includes(paymentItem.value)) paymentItem.value.paymentTerms = terms
+}
 const page = ref(1)
 const pageSize = ref(10)
 const visibleItems = computed(() => oa.items.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
@@ -59,11 +73,13 @@ const displayAmount = (value: string | null) => value === null ? '—' : formatR
       </div>
     </section>
     <OaLookupDialog />
+    <PaymentTermsDialog :item="paymentItem" @close="paymentItem = null" @confirm="savePayment" />
     <ContractTabs v-model="store.detailTab" prefix="detail" label="合同明细" class="detail-tabs" :tabs="[{ id: 'items', label: '合同标的' }, { id: 'partners', label: '合作伙伴' }]" />
     <section v-show="store.detailTab === 'items'" id="detail-panel-items" role="tabpanel" aria-labelledby="detail-tab-items" class="contract-table-panel">
+      <p v-if="paymentFeedback" class="oa-feedback" role="status">{{ paymentFeedback }}</p>
       <div class="contract-table-scroll" tabindex="0" aria-label="合同标的表，可横向滚动">
         <table class="contract-table items-table">
-          <colgroup><col style="width: 28%" /><col style="width: 16%" /><col style="width: 18%" /><col style="width: 20%" /><col style="width: 18%" /></colgroup>
+          <colgroup><col style="width: 20%" /><col style="width: 12%" /><col style="width: 14%" /><col style="width: 17%" /><col style="width: 23%" /><col style="width: 14%" /></colgroup>
           <thead><tr><th v-for="column in columns" :key="column" scope="col">{{ column }}</th></tr></thead>
           <tbody>
             <tr v-for="(item, index) in visibleItems" :key="item.id">
@@ -71,6 +87,16 @@ const displayAmount = (value: string | null) => value === null ? '—' : formatR
               <td class="item-amount">{{ displayAmount(item.hardwareAmount) }}</td>
               <td class="item-amount">{{ displayAmount(item.softwareServiceAmount) }}</td>
               <td class="item-amount">{{ displayAmount(item.otherSoftwareServiceAmount) }}</td>
+              <td class="item-text">
+                <button type="button" class="item-payment" :class="{ 'item-payment-icon': !item.paymentTerms?.length }" :title="item.paymentTerms?.length ? '编辑付款方式' : '设置付款方式'" :aria-label="`第 ${(page - 1) * pageSize + index + 1} 条合同标的付款方式：${paymentSummary(item.paymentTerms) || '设置付款方式'}`" @click="paymentItem = item">
+                  <template v-if="item.paymentTerms?.length">{{ paymentSummary(item.paymentTerms) }}</template>
+                  <SquarePen v-else :size="16" aria-hidden="true" />
+                </button>
+                <div v-if="item.paymentTerms?.length || oa.copiedPaymentTerms.length" class="item-payment-actions">
+                  <button v-if="item.paymentTerms?.length" type="button" class="item-payment item-payment-icon" title="复制付款方式" :aria-label="`复制第 ${(page - 1) * pageSize + index + 1} 条合同标的付款方式`" @click="copyPayment(item)"><Copy :size="16" aria-hidden="true" /></button>
+                  <button v-if="oa.copiedPaymentTerms.length" type="button" class="item-payment item-payment-icon" :title="item.paymentTerms?.length ? '粘贴并替换付款方式' : '粘贴付款方式'" :aria-label="`粘贴付款方式到第 ${(page - 1) * pageSize + index + 1} 条合同标的${item.paymentTerms?.length ? '（替换已有设置）' : ''}`" @click="pastePayment(item)"><ClipboardPaste :size="16" aria-hidden="true" /></button>
+                </div>
+              </td>
               <td class="item-text"><textarea v-model="item.remarks" maxlength="2000" class="item-remarks" rows="2" :aria-label="`第 ${(page - 1) * pageSize + index + 1} 条合同标的备注`" placeholder="填写备注" /></td>
             </tr>
             <tr v-if="!oa.items.length"><td :colspan="columns.length" class="contract-empty">暂无合同标的</td></tr>

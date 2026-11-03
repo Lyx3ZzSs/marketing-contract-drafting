@@ -28,6 +28,7 @@ export const useContractDraft = defineStore('contract-draft', () => {
     return {
       revision: catalog.value?.revision ?? '', source: oa.result,
       contract_name: contract.values.name ?? '',
+      payment_terms: Object.fromEntries(oa.items.map(item => [item.id, (item.paymentTerms ?? []).map(({ id, percentage }) => ({ id, percentage }))])),
       remarks: Object.fromEntries(oa.items.map(item => [item.id, item.remarks])),
       fields: { ...manual.value },
     }
@@ -97,7 +98,7 @@ export const useContractDraft = defineStore('contract-draft', () => {
     if (id) lastRecord = id
   }, { flush: 'sync' })
   watch(() => contract.selectedTemplate, () => { void reload() }, { immediate: true })
-  watch(() => JSON.stringify([oa.result, oa.items.map(item => [item.id, item.remarks]), contract.values.name, manual.value]), schedule, { flush: 'sync' })
+  watch(() => JSON.stringify([oa.result, oa.items.map(item => [item.id, item.remarks, item.paymentTerms?.map(({ id, percentage }) => [id, percentage])]), contract.values.name, manual.value]), schedule, { flush: 'sync' })
 
   function setField(id: string, value: string) {
     if (catalog.value?.fields.some(field => field.id === id && field.editable)) manual.value[id] = value

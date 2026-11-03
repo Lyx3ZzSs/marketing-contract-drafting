@@ -74,7 +74,14 @@
 .contract-table-panel { border: 1px solid var(--contract-line); border-radius: 0 0 4px 4px; overflow: hidden; }
 .contract-table-scroll { overflow-x: auto; scrollbar-width: thin; scrollbar-color: #c5d4cf transparent; }
 .contract-table { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: 14px; }
-.items-table { min-width: 860px; }
+.items-table { min-width: 1100px; }
+.items-table .item-payment { padding: 4px 0; background: transparent; border: 0; color: #216ab2; font: inherit; text-align: left; white-space: normal; overflow-wrap: anywhere; line-height: 1.7; cursor: pointer; }
+.items-table .item-payment:hover { color: #174d83; text-decoration: underline; text-underline-offset: 3px; }
+.items-table .item-payment-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin-left: auto; padding: 0; border-radius: 5px; }
+.item-payment-actions { display: flex; justify-content: flex-end; gap: 4px; }
+.items-table .item-payment-actions .item-payment-icon { margin-left: 0; }
+.items-table .item-payment:focus-visible { outline: 2px solid #318d82; outline-offset: 2px; }
+.items-table .item-payment-icon:hover { background: #edf4f8; }
 .items-table .item-text { text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .items-table .item-amount { text-align: right; font-variant-numeric: tabular-nums; }
 .items-table .item-remarks { display: block; width: 100%; min-height: 58px; padding: 8px 10px; border: 1px solid var(--contract-line); border-radius: 5px; background: #fff; color: var(--contract-text); font: inherit; resize: vertical; }
@@ -373,6 +380,22 @@
 .oa-name-comparison dd { margin: 0; overflow-wrap: anywhere; }
 .template-dialog-actions .oa-confirm { background: var(--contract-accent); color: #fff; border-color: var(--contract-accent); }
 .template-dialog-actions .oa-confirm:hover { background: var(--contract-accent-hover); }
+.payment-dialog { width: min(800px, calc(100vw - 32px)); }
+.payment-dialog .payment-clear { margin-right: auto; }
+.payment-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.payment-dialog-heading h2 { margin: 0; }
+.payment-close { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 5px; background: transparent; color: var(--contract-muted); cursor: pointer; }
+.payment-close:hover { background: #edf4f2; }
+.payment-dialog .payment-item-name { color: var(--contract-text); font-weight: 600; }
+.payment-toolbar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin: 18px 0 12px; font-size: 14px; }
+.payment-total-complete { color: var(--contract-accent); }
+.payment-table-scroll { max-height: 45dvh; border: 1px solid var(--contract-line); border-radius: 5px; }
+.payment-table { min-width: 580px; }
+.payment-table th { position: sticky; top: 0; z-index: 1; }
+.payment-table td { padding: 8px; }
+.payment-table input { width: 100%; min-width: 0; border: 1px solid #cfdcda; border-radius: 4px; background: #fff; padding: 7px 8px; color: var(--contract-text); font: inherit; }
+.payment-dialog button:focus-visible, .payment-dialog input:focus-visible, .payment-table-scroll:focus-visible { outline: 2px solid #318d82; outline-offset: 2px; }
+.payment-dialog .payment-error { margin: 12px 0 0; color: var(--contract-danger); }
 
 /* Cover-name retry and template configuration. */
 .cover-name-retry { color: var(--contract-accent, #326c66); background: transparent; border: 0; font-size: 13px; text-decoration: underline; cursor: pointer; }

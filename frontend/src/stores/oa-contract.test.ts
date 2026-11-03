@@ -122,7 +122,7 @@ it('fills all contract items, keeps same-name rows and editable session remarks'
   vi.mocked(readOaSummary).mockResolvedValue({ ...summary(), projects: [project('-9007199254740993'), project('9007199254740993')] })
   await oa.search()
   expect(oa.items).toHaveLength(2)
-  expect(oa.items[0]).toEqual({ id: '-9007199254740993', softwareCopyrightName: '同名软著', hardwareAmount: '999999999999999999.99', softwareServiceAmount: '0.00', otherSoftwareServiceAmount: null, remarks: '' })
+  expect(oa.items[0]).toEqual({ id: '-9007199254740993', softwareCopyrightName: '同名软著', hardwareAmount: '999999999999999999.99', softwareServiceAmount: '0.00', otherSoftwareServiceAmount: null, remarks: '', paymentTerms: [] })
   oa.items[0]!.remarks = '备注内容'
   contract.activeTab = 'terms'; contract.activeTab = 'basic'
   expect(oa.items[0]!.remarks).toBe('备注内容')
@@ -148,4 +148,56 @@ it('missing station names do not block valid financial data', async () => {
   await oa.search()
   expect(contract.values.amount).toBe(summary().amount)
   expect(oa.error).toBe('')
+})
+
+it('preserves payment settings only for the same record and project, and clears on number change', async () => {
+  const contract = useContractPrototype(), oa = useOaContract()
+  contract.values.number = 'OA-001'
+  vi.mocked(readOaSummary).mockResolvedValue({ ...summary(), projects: [project('1'), project('2')] })
+  await oa.search()
+  const terms = [{ id: 'advance', name: '预付', percentage: 100, days: 10, due: '' }]
+  oa.items[0]!.paymentTerms = terms
+  expect(oa.items[1]!.paymentTerms).toEqual([])
+  await oa.search()
+  expect(oa.items[0]!.paymentTerms).toEqual(terms)
+  expect(oa.items[1]!.paymentTerms).toEqual([])
+  vi.mocked(readOaSummary).mockResolvedValue({ ...summary(), record: candidate('other-record'), projects: [project('1')] })
+  await oa.search()
+  expect(oa.items[0]!.paymentTerms).toEqual([])
+  contract.values.number = 'OA-002'; contract.values.number = 'OA-001'
+  vi.mocked(readOaSummary).mockResolvedValue({ ...summary(), projects: [project('1')] })
+  await oa.search()
+  expect(oa.items[0]!.paymentTerms).toEqual([])
+})
+
+it('copies a complete snapshot across item pages without sharing edits and isolates another query', async () => {
+  const contract = useContractPrototype(), oa = useOaContract()
+  contract.values.number = 'OA-001'
+  vi.mocked(readOaSummary).mockResolvedValue({ ...summary(), projects: Array.from({ length: 11 }, (_, i) => project(String(i))) })
+  await oa.search()
+  const source = oa.items[0]!, target = oa.items[10]!, other = oa.items[1]!
+  expect(oa.pastePayment(target)).toBe(false)
+  expect(oa.copyPayment(source)).toBe(false)
+  const terms = [
+    { id: 'acceptance', name: '验收款', percentage: 90, days: 15, due: '' },
+    { id: 'warranty', name: '质保金', percentage: 10, days: 20, due: '2年' },
+  ]
+  source.paymentTerms = terms.map(term => ({ ...term }))
+  expect(oa.copyPayment(source)).toBe(true)
+  source.paymentTerms[0]!.days = 30
+  target.paymentTerms = [{ id: 'advance', name: '预付款', percentage: 100, days: 10, due: '' }]
+  contract.activeTab = 'terms'; contract.activeTab = 'basic'
+  expect(oa.pastePayment(target)).toBe(true)
+  expect(target.paymentTerms).toEqual(terms)
+  target.paymentTerms[1]!.due = '3年'
+  expect(oa.pastePayment(other)).toBe(true)
+  expect(other.paymentTerms).toEqual(terms)
+  expect(source.paymentTerms[1]!.due).toBe('2年')
+  await oa.search()
+  expect(oa.copiedPaymentTerms).toEqual([])
+  expect(oa.pastePayment(target)).toBe(false)
+  expect(oa.copyPayment(source)).toBe(false)
+  expect(oa.copyPayment(oa.items[0]!)).toBe(true)
+  contract.values.number = 'OA-002'
+  expect(oa.copiedPaymentTerms).toEqual([])
 })

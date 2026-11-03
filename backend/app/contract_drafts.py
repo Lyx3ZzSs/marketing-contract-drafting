@@ -15,6 +15,7 @@ from app.contract_values import MaterialSummary, aggregate
 from app.db import SessionLocal
 from app.models import ContractTemplate
 from app.oa import ProjectSummary
+from app.payment_terms import PaymentRatio, resolve_payments
 
 router = APIRouter(prefix="/api/v1/templates", tags=["合同联动"])
 ShortText = Annotated[str, Field(max_length=2000, pattern=r"^[^\x00-\x08\x0b\x0c\x0e-\x1f]*$")]
@@ -26,6 +27,9 @@ class DraftInput(BaseModel):
     source: ProjectSummary | None = None
     contract_name: ShortText = ""
     remarks: dict[str, ShortText] = Field(default_factory=dict, max_length=10000)
+    payment_terms: dict[str, Annotated[list[PaymentRatio], Field(max_length=4)]] = Field(
+        default_factory=dict, max_length=10000
+    )
     fields: dict[str, ShortText] = Field(default_factory=dict, max_length=100)
 
 
@@ -90,6 +94,7 @@ def prepare_document(template: ContractTemplate, data: DraftInput) -> PreparedDo
     settings = check_revision(template, data.revision)
     errors = []
     material = None
+    payments = None
     if not settings["supported"]:
         errors.append("此模板尚未配置标的物映射，请使用已适配的采购合同模板")
     elif data.source is None:
@@ -97,6 +102,7 @@ def prepare_document(template: ContractTemplate, data: DraftInput) -> PreparedDo
     else:
         try:
             material = aggregate(data.source, data.remarks)
+            payments = resolve_payments(data.source, data.payment_terms, material.total)
         except ValueError as exc:
             errors.append(str(exc))
     if not data.contract_name.strip():
@@ -109,6 +115,7 @@ def prepare_document(template: ContractTemplate, data: DraftInput) -> PreparedDo
             data.contract_name,
             material,
             data.fields,
+            payments,
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc

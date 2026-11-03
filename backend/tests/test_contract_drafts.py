@@ -126,6 +126,22 @@ def template(monkeypatch: pytest.MonkeyPatch) -> bytes:
 
     def paragraph(index: int, parent: ET._Element) -> None:
         p = ET.SubElement(parent, W + "p")
+        payment_text = {
+            105: "5.1 预付款：合同总价xx%，即人民币 0.00元（大写：圆整）。",
+            107: "5.2 到货款：合同总价的xx%，即人民币 00.00元（大写：圆整）。 ",
+            109: "5.3 验收款：合同总价的xx%，即人民币    元（大写：    圆整）。 ",
+            111: "5.4 质保金：合同总价的xx%，即人民币 00.00元（大写： 圆整）。",
+        }
+        if index in payment_text:
+            # Split even placeholders across runs to exercise Word's actual storage model.
+            for character in payment_text[index]:
+                r = ET.SubElement(p, W + "r")
+                properties = ET.SubElement(r, W + "rPr")
+                ET.SubElement(properties, W + "sz").set(W + "val", "24")
+                if character in "x%":
+                    ET.SubElement(properties, W + "highlight").set(W + "val", "yellow")
+                ET.SubElement(r, W + "t").text = character
+            return
         r = ET.SubElement(p, W + "r")
         if index in SOURCES or index == 102:
             ET.SubElement(ET.SubElement(r, W + "rPr"), W + "highlight").set(W + "val", "yellow")

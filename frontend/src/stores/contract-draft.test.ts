@@ -27,7 +27,7 @@ async function setup() {
   const draft = useContractDraft()
   await contract.selectTemplate('t1')
   oa.result = source()
-  oa.items = [{ id: 'project-1', softwareCopyrightName: '系统', hardwareAmount: '1', softwareServiceAmount: '2', otherSoftwareServiceAmount: '3', remarks: '' }]
+  oa.items = [{ id: 'project-1', softwareCopyrightName: '系统', hardwareAmount: '1', softwareServiceAmount: '2', otherSoftwareServiceAmount: '3', remarks: '', paymentTerms: [] }]
   contract.values.name = '平山湖风电站\n风电场功率预测系统V1.0\n采购合同'
   await settle()
   return { contract, oa, draft }
@@ -72,4 +72,27 @@ it('a new template revision clears previous edits and honors revoked permissions
   await draft.reload(); await settle()
   draft.setField('date', '不允许')
   expect(draft.manual.date).toBeUndefined()
+})
+
+it('syncs confirmed ratios and clearing while excluding days and due from template input', async () => {
+  const { oa, draft } = await setup()
+  const terms = [
+    { id: 'acceptance', name: '验收款', percentage: 90, days: 10, due: '' },
+    { id: 'warranty', name: '质保金', percentage: 10, days: 15, due: '2年' },
+  ]
+  oa.items[0]!.paymentTerms = terms
+  expect(draft.busy).toBe(true)
+  await settle()
+  const expected = { 'project-1': [{ id: 'acceptance', percentage: 90 }, { id: 'warranty', percentage: 10 }] }
+  expect(previewDraft).toHaveBeenLastCalledWith('t1', expect.objectContaining({ payment_terms: expected }), expect.any(AbortSignal))
+  const snapshot = draft.input()
+  vi.mocked(previewDraft).mockClear()
+  oa.items[0]!.paymentTerms[0]!.days = 25
+  oa.items[0]!.paymentTerms[1]!.due = '3年'
+  await settle()
+  expect(previewDraft).not.toHaveBeenCalled()
+  oa.items[0]!.paymentTerms = []
+  await settle()
+  expect(previewDraft).toHaveBeenLastCalledWith('t1', expect.objectContaining({ payment_terms: { 'project-1': [] } }), expect.any(AbortSignal))
+  expect(snapshot.payment_terms).toEqual(expected)
 })

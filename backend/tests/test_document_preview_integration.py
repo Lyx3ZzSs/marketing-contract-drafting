@@ -191,3 +191,41 @@ def test_user_isolation_including_files_sse_and_cache(
         task.owner_sub = None
     assert client.get(paths[0], headers=alice).status_code == 404
     assert client.get(paths[0], headers=admin).status_code == 200
+
+
+def test_preview_accepts_unset_payment_terms(contract: tuple[str, dict]) -> None:
+    ident, payload = contract
+    assert "payment_terms" not in payload
+    terms = client.post(f"/api/v1/templates/{ident}/preview", json=payload)
+    assert terms.status_code == 200
+    assert terms.json()["errors"] == []
+    response = client.post(f"/api/v1/templates/{ident}/document-previews", json=payload)
+    assert response.status_code == 202, response.text
+
+
+def test_payment_fill_conflict_and_cache_invalidation(contract: tuple[str, dict]) -> None:
+    ident, payload = contract
+    url = f"/api/v1/templates/{ident}/document-previews"
+    initial = client.post(url, json=payload)
+    assert initial.status_code == 202
+    payments = {"0": [{"id": "acceptance", "percentage": 90}, {"id": "warranty", "percentage": 10}]}
+    updated = {**payload, "payment_terms": payments}
+    terms = client.post(f"/api/v1/templates/{ident}/preview", json=updated)
+    assert terms.status_code == 200 and terms.json()["errors"] == []
+    result = client.post(url, json=updated)
+    assert result.status_code == 202
+    assert result.json()["id"] != initial.json()["id"]
+    with SessionLocal() as session:
+        row = session.get(DocumentPreview, uuid.UUID(result.json()["id"]))
+        assert row is not None and row.source_docx is not None
+        from app.contract_document import read_root, text
+
+        rendered = text(read_root(row.source_docx))
+        assert "229500.00" in rendered and "贰拾贰万玖仟伍佰圆整" in rendered
+    # A conflicting request must not hit the existing valid preview cache.
+    conflicting = {**payments, "1": [{"id": "advance", "percentage": 100}]}
+    conflict = client.post(url, json={**payload, "payment_terms": conflicting})
+    assert conflict.status_code == 422 and "不一致" in conflict.text
+    assert (
+        client.post(url, json={**payload, "payment_terms": {}}).json()["id"] == initial.json()["id"]
+    )

@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-02",
+  "browser": "Existing authenticated Chrome session, native UI automation",
+  "url": "http://127.0.0.1:15173/",
+  "checks": [
+    "OA returned three contract items",
+    "Six columns rendered",
+    "Selected advance/delivery/acceptance/warranty at 30/30/30/10 percent",
+    "Confirmation displayed the exact requested summary on item 1",
+    "Other two items remained unset",
+    "Reopening restored percentages, days and warranty due",
+    "Changed advance to 50 then cancelled; saved summary remained at 30"
+  ],
+  "summary": "30%预付款，30%到货款，30%验收款，10%质保金",
+  "automated_checks": [
+    "PaymentTermsDialog tests",
+    "OA store tests",
+    "Contract draft store tests",
+    "TypeScript typecheck",
+    "ESLint",
+    "Vite production build"
+  ],
+  "scope": "Per-item current-session UI settings; no Word/PDF binding or backend persistence",
+  "screenshots": [
+    "dialog.png",
+    "table.png"
+  ]
+}

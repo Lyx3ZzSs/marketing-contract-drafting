@@ -97,10 +97,11 @@ async function setup() {
   }
   contract.values.name = '平山湖'
   await settle()
-  return { contract, draft, preview }
+  return { contract, oa, draft, preview }
 }
 it('opens current snapshot, retains reading position after updates and returns to terms', async () => {
   const { contract, preview } = await setup()
+  expect(preview.position.zoom).toBe('width')
   await preview.open()
   preview.position = { page: 3, offset: 0.2, zoom: 0.8, sidebar: false }
   preview.close()
@@ -180,4 +181,18 @@ it('does not open a document when terms contain validation errors', async () => 
   }
   await preview.open()
   expect(createDocumentPreview).not.toHaveBeenCalled()
+})
+
+it('allows preview when payment terms are empty on any page', async () => {
+  const { oa, preview } = await setup()
+  oa.items = Array.from({ length: 11 }, (_, index) => ({
+    id: String(index), softwareCopyrightName: `系统${index}`, hardwareAmount: null,
+    softwareServiceAmount: null, otherSoftwareServiceAmount: null, remarks: '',
+    paymentTerms: [],
+  }))
+  await settle()
+  expect(preview.canOpen).toBe(true)
+  await preview.open()
+  expect(createDocumentPreview).toHaveBeenCalledOnce()
+  expect(vi.mocked(createDocumentPreview).mock.calls[0]![1].payment_terms).toEqual(Object.fromEntries(oa.items.map(item => [item.id, []])))
 })

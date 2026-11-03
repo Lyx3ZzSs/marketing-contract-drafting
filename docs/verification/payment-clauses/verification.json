@@ -1,0 +1,61 @@
+{
+  "source_sha256": "094d95c7471ba6295ca7f0d41fe587518c37d584c410eb398846cd17d62463f8",
+  "project_count": 3,
+  "contract_total": "255000.00",
+  "cases": [
+    {
+      "name": "original-payments",
+      "seconds": 1.211,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.1 预付款：合同总价xx%，即人民币 0.00元（大写：圆整）。",
+        "5.2 到货款：合同总价的xx%，即人民币 00.00元（大写：圆整）。 ",
+        "5.3 验收款：合同总价的xx%，即人民币    元（大写：    圆整）。 ",
+        "5.4 质保金：合同总价的xx%，即人民币 00.00元（大写： 圆整）。"
+      ],
+      "pdf_sha256": "e04ffa7ffa868d73b6adb974a20cb21cab536c088d91ae0dfcf253c20478f986",
+      "only_payment_slots_changed": true,
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    },
+    {
+      "name": "payments-30-30-30-10",
+      "seconds": 1.14,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.1 预付款：合同总价30%，即人民币 76500.00元（大写：柒万陆仟伍佰圆整）。",
+        "5.2 到货款：合同总价的30%，即人民币 76500.00元（大写：柒万陆仟伍佰圆整）。 ",
+        "5.3 验收款：合同总价的30%，即人民币76500.00元（大写：    柒万陆仟伍佰圆整）。 ",
+        "5.4 质保金：合同总价的10%，即人民币 25500.00元（大写： 贰万伍仟伍佰圆整）。"
+      ],
+      "pdf_sha256": "104df3218e7158dfc7f3e4052375c290a830292d5271bcd057491199f546db64",
+      "only_payment_slots_changed": true,
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    },
+    {
+      "name": "payments-90-10",
+      "seconds": 1.16,
+      "pages": 10,
+      "payment_pages": [
+        4
+      ],
+      "payment_paragraphs": [
+        "5.1 预付款：合同总价0%，即人民币 0.00元（大写：零圆整）。",
+        "5.2 到货款：合同总价的0%，即人民币 0.00元（大写：零圆整）。 ",
+        "5.3 验收款：合同总价的90%，即人民币229500.00元（大写：    贰拾贰万玖仟伍佰圆整）。 ",
+        "5.4 质保金：合同总价的10%，即人民币 25500.00元（大写： 贰万伍仟伍佰圆整）。"
+      ],
+      "pdf_sha256": "22f3d470e453ec467a7863bd164e2e9d01b8386f69d0d6ed2b1e5cd1b17aaf59",
+      "only_payment_slots_changed": true,
+      "run_and_paragraph_formatting_preserved": true,
+      "page_api_matches_pdf": true
+    }
+  ]
+}

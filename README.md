@@ -6,60 +6,65 @@
 
 - 前端：Vue 3、Vite、TypeScript、Tailwind CSS v4、shadcn-vue、Tiptap、Pinia、Vue Router。
 - 后端：FastAPI、Pydantic、SQLAlchemy、Alembic、LangGraph。
-- 服务：PostgreSQL 17、Redis 7、Celery、公司已有 MinIO（S3 协议）。
-- 工具：Node.js 24、pnpm 11.25.0、Python 3.12、uv。精确依赖见 `pnpm-lock.yaml` 与 `uv.lock`。
+- 服务：PostgreSQL 17、Redis 7、Celery、ONLYOFFICE Docs 10.0、公司已有 MinIO（S3 协议）。
+- 工具：Node.js >=22.12（推荐 24）、pnpm 11.25.0、Python 3.12、uv。精确依赖见 `pnpm-lock.yaml` 与 `uv.lock`。
 
-## 一键运行
+## 本地启动（默认混合模式）
 
-需要可用的 Docker Engine 与 Docker Compose 2.24+。首次构建需要访问镜像和软件包仓库。
+当前统一使用：**前端、FastAPI、Celery worker 和 scheduler 在本机运行；PostgreSQL、Redis、ONLYOFFICE Docs 在 Docker 中运行。**
+
+需要 Python 3.12、uv、Node.js >=22.12（推荐 24）、pnpm 11.25.0，以及可用的 Docker Engine / Compose 2.24+。首次准备：
 
 ```bash
-cp .env.example .env
+# 已有 .env 时保留其中的 OA、认证和 ONLYOFFICE 配置
+[ -f .env ] || cp .env.example .env
+# 新环境将 openssl rand -hex 32 的结果填入 ONLYOFFICE_JWT_SECRET
+make install
 make up
 ```
 
-访问：
+`make up` 启动并等待三个 Docker 依赖就绪，应用数据库迁移，然后在后台启动四个本机进程。重复执行不会创建重复的 worker/scheduler。默认 API 和前端都只监听 127.0.0.1，前端通过 Vite 将 `/api` 转发到本机 API。
 
-| 服务 | 地址 |
+| 服务 | 地址或进程 |
 | --- | --- |
-| 合同前端原型 | http://127.0.0.1:15173 |
+| 合同前端 | http://127.0.0.1:15173 |
 | 工程联调页 | http://127.0.0.1:15173/dev |
 | 服务连接检查 | http://127.0.0.1:15173/dev/connections |
 | API 文档 | http://127.0.0.1:18400/api/docs |
-| 存活检查 | http://127.0.0.1:18400/api/v1/health/live |
-| 就绪检查 | http://127.0.0.1:18400/api/v1/health/ready |
+| API 存活检查 | http://127.0.0.1:18400/api/v1/health/live |
+| PostgreSQL / Redis | 127.0.0.1:15432 / 127.0.0.1:16379 |
+| ONLYOFFICE Docs | http://127.0.0.1:18082 |
+| Celery worker / scheduler | 本机后台进程，由 scripts/local.py 管理 |
 
-Compose 项目名称为 `marketing-contract-scaffold`，PostgreSQL 和 Redis 分别使用本机端口 15432、16379，不复用其他项目容器。端口仅绑定本机。API、worker 与 scheduler 共用镜像；独立迁移容器完成 Alembic 升级后再启动应用。
-
-```bash
-docker compose -f deploy/compose.yaml ps
-docker compose -f deploy/compose.yaml logs -f api worker
-make down
-```
-
-`make down` 保留数据库与 Redis 数据卷。不要在需要保留生成记录时执行 `down -v`。
-
-## 本机开发
-
-使用 Node.js 24 和 Python 3.12。安装 pnpm 11.25.0 与 uv 后：
+日常命令：
 
 ```bash
-make install
-make infra
-make migrate
+make status   # 查看本机进程和 Docker 依赖
+make logs     # 查看四个本机服务最近的日志
+make restart  # 重启本机应用；Docker 依赖保持运行
+make stop     # 只停止本机应用
+make down     # 停止本机应用和三个 Docker 依赖，保留数据
+make up       # 再次启动
 ```
 
-分别在三个终端运行：
+日志、PID 和 beat 调度状态保存在 `.local/run/`。脚本只停止自己登记且启动时间匹配的进程组，端口被其他进程占用时明确报错，不直接杀进程。worker 使用 macOS 适用的 `solo` 模式。前端和 API 支持源码热更新；worker/scheduler 代码或根目录 `.env` 改动后运行 `make restart`。依赖变更后运行 `make install && make restart`，不需要重建应用镜像。
+
+本机后端统一读取根目录 `.env`，数据库、Redis、Docs 使用以上宿主机端口。API、worker、scheduler 默认共用项目 `.local/previews/`，可通过 `PREVIEW_DIRECTORY` 指定同一个绝对目录。模板和业务记录继续保存在原 PostgreSQL 数据卷；字体及 Docs 数据卷继续使用原配置。
+
+当前环境已从 Docker `preview_data` 卷复制已有 PDF 到 `.local/previews/`，并核对 SHA-256。其他旧环境切换时，也必须在停止应用写入后迁移预览目录，不能只改数据库地址。旧卷保留以便回查。不要删除需要保留的数据卷。
+
+`deploy/compose.yaml` 默认只启动三个依赖；容器版 api/worker/scheduler/frontend/migrate 放在 `application` profile 中，用于单独的容器联调。本机启动脚本会拒绝与这些容器同时运行，避免抢占端口和重复消费队列。当前日常开发不启用该 profile。
+
+需要前台调试时，先 `make stop`，然后执行 `make infra && make migrate`，在四个终端分别运行：
 
 ```bash
 make api
 make worker
+make scheduler
 make web
 ```
 
-本机 worker 使用 `solo`，便于 macOS 调试；Compose 使用两个工作进程。本机配置读取根目录 `.env`。Compose 覆盖数据库和 Redis 地址为容器内部主机名，其余配置沿用 `.env`。
-
-首页 `ContractShell.vue` 从模板 API 加载合同类型和条款。空白字段定义与列表类型位于 `frontend/src/data/contract-form.ts`，页面拆分在 `frontend/src/components/contract/`，样式位于 `frontend/src/styles/contract.css`。表单与各条款 JSON 通过 Pinia 在当前页面会话中保留，刷新后恢复空白表单及模板原文。合同标的表仅保留软著名称、硬件金额、软件+服务金额、其他软件+服务金额、备注五列；查询合同编号后按 OA 项目明细逐行回填，备注可手工输入并保留在当前会话。重新查询、修改编号或刷新页面会清空备注；尚未接入合同保存。开发联调入口与首页分离。设计依据见 `docs/design/`，视觉核对记录见 `design-qa.md`。
+首页 `ContractShell.vue` 从模板 API 加载合同类型和条款。空白字段定义与列表类型位于 `frontend/src/data/contract-form.ts`，页面拆分在 `frontend/src/components/contract/`，样式位于 `frontend/src/styles/contract.css`。表单与各条款 JSON 通过 Pinia 在当前页面会话中保留，刷新后恢复空白表单及模板原文。合同标的表包含软著名称、硬件金额、软件+服务金额、其他软件+服务金额、付款方式、备注六列；查询合同编号后按 OA 项目明细逐行回填。备注和付款方式在当前会话内按会签及项目分别保存，同一会签重新查询保留，修改编号或刷新页面清空；尚未接入合同保存。开发联调入口与首页分离。设计依据见 `docs/design/`，视觉核对记录见 `design-qa.md`。
 
 ## OA 合同会签取数
 
@@ -76,9 +81,10 @@ make web
 | 硬件金额 | `formson_3398.field0233` | 精确两位小数字符串 |
 | 软件+服务金额 | `formson_3398.field0234` | 精确两位小数字符串 |
 | 其他软件+服务金额 | `formson_3398.field0291` | 精确两位小数字符串 |
+| 付款方式 | 当前会话弹窗设置 | 按标的独立配置，不读取或写回 OA |
 | 备注 | 当前会话手工输入 | 不读取或写回 OA |
 
-合同标的随同基本信息一次查询回填，金额空值显示“—”，零值显示“0.00”，负值保留；分项字段不改变上方 `field0385` 合计。每页可显示 10 或 20 条，翻页保留备注。查询失败、切换编号或等待覆盖确认期间不展示旧标的。
+合同标的随同基本信息一次查询回填，金额空值显示“—”，零值显示“0.00”，负值保留；分项字段不改变上方 `field0385` 合计。每页可显示 10 或 20 条，翻页保留备注和付款设置。查询失败、切换编号或等待覆盖确认期间不展示旧标的。
 
 存在多条会签时弹窗列出记录标识、发起日期和原始会签状态，由用户选择；当前不按会签状态过滤。合同名称保持可编辑，手工名称不会自动被建议覆盖。金额只读，零值和负值按原值保留并提示核对。无会签、无明细、缺少金额或币种时明确报错，不把缺失金额当作零。缺少场站名、模板封面未配置或简称建议不可用时，名称独立提示，不阻断有效金额、币种和合同标的回填。
 
@@ -97,13 +103,20 @@ make web
 | `GET /api/v1/oa/contracts/lookup?contract_number=流水号` | 返回匹配会签；大整数记录标识以字符串传输 |
 | `GET /api/v1/oa/contracts/{record_id}/project-summary` | 返回项目明细、场站名称、精确金额合计及缺失/异常提示 |
 
-缺少配置时接口返回 503“OA 数据库未配置”。`health/ready` 的 `integrations.oa` 仅报告配置是否完整，连接可用性以实际查询为准。修改环境变量后须重新创建 API 容器；修改后端代码或依赖后执行：
+缺少配置时接口返回 503“OA 数据库未配置”。`health/ready` 的 `integrations.oa` 仅报告配置是否完整，连接可用性以实际查询为准。修改环境变量或 worker/scheduler 代码后执行 `make restart`；修改后端依赖时先执行：
 
 ```bash
-docker compose -f deploy/compose.yaml up -d --build api
+make install
+make restart
 ```
 
 当前核实的表结构见 `docs/oa-schema/`。流水号字段未建索引；本轮没有更改 OA 索引，未来若取数变慢应由 OA 管理方评估。该功能沿用本机开发访问边界。
+
+## 合同标的付款方式
+
+每行点击付款方式列的小编辑图标（悬停提示“设置付款方式”）或已有摘要，打开付款设置弹窗。固定提供预付款、到货款、验收款、质保金四个节点，无需勾选，直接填写百分比、天数和到期／年；百分比留空的节点不采用，填写后自动启用。默认天数依次为 10、30、10、10，质保金默认“到期”。比例支持两位小数，各项须大于 0 且不超过 100，已填比例合计须为 100%；天数须为非负整数。弹窗底部提供“清空”按钮，一键清除比例并恢复默认天数和到期设置；付款方式可留空，点击“确认”后清空表格中的付款设置，点击“取消”则保留原设置。未填写付款方式不影响生成合同预览。
+
+点击“确认”后按付款条件、实际天数和比例显示摘要，例如“验收合格后10天，支付90%；质保到期后10天，支付10%”。预付款按“合同签订后”、到货款按“货物到货后”展示，多项以分号分隔；再次点击可查看和修改完整设置。付款方式栏右侧提供复制小图标；复制后，在其他标的右侧点击粘贴图标，即可复制完整的比例、天数及到期信息，替换目标已有设置，支持跨页粘贴。每次粘贴都是独立副本，后续编辑互不影响；重新查询、切换会签或修改编号会清除已复制内容。取消、关闭或 Esc 不提交弹窗草稿。数据按每条标的独立保存，翻页、切换页签或进入模板管理再返回均保留；修改合同编号或刷新页面清空。确认或粘贴后，付款节点及比例会同步到条款页面和 PDF：所有已填写标的须具有相同节点和比例，未填写的标的不参与比较；全部未填写时保留模板原文。后端按合同总额计算各款项金额及大写，仅填充模板 5.1～5.4 的百分比、金额、大写金额共 12 个位置；有付款设置时，未采用节点的金额行和对应付款条件段落不展示，保留节点沿用原编号、原文与格式。全部未填写时仍保留完整原文。天数与到期信息只保留在标的设置中，不改写模板的付款条件或质保期。金额使用 Decimal、按分四舍五入，最后一个有比例的节点承接尾差；极小金额按剩余额度分配，避免尾款符号反转。没有新增后端持久化。
 
 ## 后台合同模板管理
 
@@ -182,7 +195,7 @@ S3_VERIFY_TLS=true
 ```bash
 make storage-smoke
 # 或仅使用容器运行
-docker compose -f deploy/compose.yaml exec api python -m scripts.storage_smoke
+docker compose --env-file .env -f deploy/compose.yaml exec api python -m scripts.storage_smoke
 ```
 
 脚本在 `scaffold-smoke/` 下创建唯一测试对象，验证内容后删除；启用版本控制的 bucket 会删除本次上传的具体版本。未配置返回 `skipped`；读写或清理失败返回非零退出码。不访问其他对象。
@@ -204,16 +217,16 @@ pnpm test:e2e
 - `e2e`：需要运行中的前后端，并通过环境变量 `E2E_USERNAME` / `E2E_PASSWORD` 提供管理员测试账号完成真实登录；不提供时跳过，不将凭据写入源码。验证 Tiptap 编辑与导航保留、真实 worker 的成功与失败反馈，以及断线期间任务完成后的事件补取和去重。测试产生的示例任务保留在开发数据库中。
 - `storage-smoke`：独立的 MinIO 读写验证，未配置不代表通过。
 
-服务重启验证：先运行工作台任务并记录 ID，再执行 `docker compose -f deploy/compose.yaml restart api worker`，调用任务详情与 events 接口，确认结果和事件仍存在。
+服务重启验证：先运行工作台任务并记录 ID，再执行 `make restart`，调用任务详情与 events 接口，确认结果和事件仍存在。
 
 ## Nginx 联调
 
-先生成前端静态产物，再启动可选 gateway：
+此可选检查使用单独的容器应用，不属于当前默认本机运行方式。先 `make stop` 停止本机应用，再生成静态产物并启动容器 profile：
 
 ```bash
 cd frontend && pnpm build
 cd ..
-docker compose -f deploy/compose.yaml --profile gateway up -d gateway
+docker compose --env-file .env -f deploy/compose.yaml --profile application --profile gateway up -d --build gateway
 ```
 
 访问 http://127.0.0.1:18088 。配置为 SPA 路由提供回退，并关闭 `/api` 的缓冲和缓存以保证 SSE 及时送达。此配置用于验证静态部署方式，正式内网域名、TLS 尚未配置。统一认证仅注册了 `http://127.0.0.1:15173`，18088 网关入口不能直接登录；需先为实际网关地址注册回调、退出地址和 Web Origin，并修改 `OIDC_FRONTEND_URL`。
@@ -242,14 +255,14 @@ docker compose -f deploy/compose.yaml --profile gateway up -d gateway
 
 ## 基本信息与条款联动
 
-输入 OA 流水号并查询后，“条款信息”自动显示封面、标的表、合同总额及大写金额；修改名称、备注会同步，无需填充按钮。条款当前全部只读，包括黄色日期及付款比例字段；这些字段保留模板原文。模板管理仅展示字段状态，暂不开放编辑权限设置，后端同样拒绝人工字段修改。基本信息联动继续生效，待业务规则确认后再调整。没有新增合同保存或审批流程。
+输入 OA 流水号并查询后，“条款信息”自动显示封面、标的表、合同总额及大写金额；修改名称、备注、付款比例会同步，无需填充按钮。条款当前全部只读；日期保留模板原文，付款比例及对应金额、大写按已确认的统一付款计划自动填充。模板管理仅展示字段状态，暂不开放编辑权限设置，后端同样拒绝人工字段修改。基本信息联动继续生效，待业务规则确认后再调整。没有新增合同保存或审批流程。
 
 - 同一软著、各类别单价相同的 N 条项目，汇总成硬件、软件及服务、配套软件三行，各行数量 N。单价不取平均，金额缺失不作零处理。不同软著或单价不能按当前三行模板合并时，明确提示，不生成错误的汇总结果。
 - 三类行总价合计与 OA `field0385` 的人民币金额核对；不一致时提示校验错误。币种继续展示 OA 项目币种，合同金额仍为人民币口径。
 - 每项备注按项目顺序去重合并，在模板中作为跨三行共用备注。同一会签重新查询保留备注；修改合同编号清空旧备注。
-- 未标黄内容不回填，包括合同编号、付款金额及甲方等空位。已明确授权的例外仅为标的表数量、单价、总价、合计与共用备注；材料名称的“硬件”“配套软件”等固定后缀保持原样。
+- 未标黄内容默认不回填，包括合同编号及甲方等空位。已明确授权的例外为标的表数量、单价、总价、合计、共用备注，以及付款章节的金额和大写金额；材料名称的“硬件”“配套软件”等固定后缀保持原样。
 
-后端分别由 `contract_values.py`（Decimal 汇总和大写）、`contract_document.py`（位置白名单和预览结构）、`contract_drafts.py`（接口及版本校验）负责。前端 `contract-draft.ts` 管理联动、请求取消及过期响应；`BoundDocumentNode.vue` 按后端字段权限渲染，当前全部为只读 DOM。原有完整条款 JSON 草稿机制已移除；开发工作台及模板只读预览仍使用 Tiptap。
+后端分别由 `contract_values.py`（Decimal 汇总和大写）、`payment_terms.py`（可选统一付款计划、比例校验和分项金额）、`contract_document.py`（位置白名单和预览结构）、`contract_drafts.py`（接口及版本校验）负责。前端 `contract-draft.ts` 管理联动、请求取消及过期响应；`BoundDocumentNode.vue` 按后端字段权限渲染，当前全部为只读 DOM。原有完整条款 JSON 草稿机制已移除；开发工作台及模板只读预览仍使用 Tiptap。
 
 接口：`GET/PUT /api/v1/templates/{id}/fields`、`POST /api/v1/templates/{id}/preview`。字段设置存储在 PostgreSQL `contract_templates.field_bindings`；执行 `uv run alembic upgrade head` 应用 `0004` 迁移。版本由原文件 SHA、映射实现版本、字段设置及封面配置共同确定。
 
@@ -260,18 +273,18 @@ docker compose -f deploy/compose.yaml --profile gateway up -d gateway
 
 ## 完整合同 PDF 预览
 
-入口仅在“条款信息”页的页签栏右侧，独立于正文卡片。查询 OA 并取得有效名称、标的及合计后可点击“预览合同”；模板未适配、名称缺失或金额校验不通过时不可生成。条款继续保持只读。预览采用第 3 版浅色全屏阅读器，支持缩略图、连续滚动、页码跳转、缩放、整页显示与适合宽度。没有新增 Word 下载、打印、签章或审批入口。
+入口仅在“条款信息”页的页签栏右侧，独立于正文卡片。查询 OA 并取得有效名称、标的及合计后可点击“预览合同”；模板未适配、名称缺失、金额校验不通过或已填写的付款比例不一致时不可生成；付款方式全部留空仍可预览原模板条款。条款继续保持只读。预览采用第 3 版浅色全屏阅读器，支持缩略图、连续滚动、页码跳转、缩放、整页显示与适合宽度。没有新增 Word 下载、打印、签章或审批入口。
 
 返回起草保留当前条款目录和会话。修改基本信息后，入口显示“更新并预览合同”；生成成功后恢复页码、页内位置、缩放与侧栏状态。切换合同编号或模板会重置阅读位置。生成中返回不取消后台任务，过期响应不能覆盖新合同。内容未变化时后端按输入快照和渲染版本复用结果。
 
-链路：`当前会话快照 → 共用字段校验和 OOXML 绑定 → Celery → LibreOffice → PDF 存储 → PDF.js`。条款预览与整份 PDF 共用 `prepare_document`，金额与大写不重复计算。原模板字节保持不变，仅在临时副本中替换已授权位置；字段绑定完成后，`package_preview_document` 在 PDF 专用副本中清除黄色高亮（含正文、页眉页脚及样式），其他颜色和格式保留；没有 LLM 调用。PDF 页数来自真实转换结果，不模拟分页。
+链路：`当前会话快照 → 共用字段校验和 OOXML 绑定 → Celery → ONLYOFFICE Docs 10.0 → PDF 存储 → PDF.js`。条款预览与整份 PDF 共用 `prepare_document`，金额与大写不重复计算。原模板字节保持不变，仅在临时副本中替换已授权位置；字段绑定完成后，`package_preview_document` 在 PDF 专用副本中清除黄色高亮（含正文、页眉页脚及样式），其他颜色和格式保留；没有 LLM 调用。PDF 页数来自真实转换结果，不模拟分页。
 
 模块职责：
 
 - `contract_drafts.py` / `contract_document.py`：共用校验、字段绑定与 DOCX 副本封装。
 - `document_previews.py`：创建、去重、状态及文件接口；模板版本校验。
 - `preview_tasks.py`：任务状态、异常恢复与定时清理；复用现有任务表及 SSE。
-- `pdf_converter.py` / `preview_files.py`：独立的转换进程与存储适配。
+- `pdf_converter.py` / `preview_files.py`：ONLYOFFICE HTTP 转换与存储适配。
 - `document-preview.ts`：前端生成状态和阅读位置；`ContractPreviewDialog.vue` / `PdfPage.vue` 负责阅读交互、按需渲染及文本选择。
 
 | 接口 | 用途 |
@@ -282,26 +295,27 @@ docker compose -f deploy/compose.yaml --profile gateway up -d gateway
 | `GET /api/v1/document-previews/{id}/download` | 下载当前预览的 PDF，设置禁止编辑权限及中文文件名 |
 | `GET /api/v1/tasks/{id}/events` | 复用持久化进度事件，前端另以状态查询补偿断线 |
 
-执行 `make up` 会安装 LibreOffice、开源中文字体并应用 `0005` 迁移。已有运行环境更新：
+执行 `make up` 会启动独立的 ONLYOFFICE Docs 10.0 服务并应用数据库迁移。JWT 密钥在 `.env` 中通过 `ONLYOFFICE_JWT_SECRET` 配置，后端与 Docs 共用该值。已有运行环境先补齐密钥，再更新：
 
 ```bash
-docker compose -f deploy/compose.yaml up -d --build api worker scheduler frontend
+make restart
 ```
 
-默认 `PREVIEW_STORAGE=local`，PDF 保存到共享 `preview_data` 卷，API、worker、scheduler 使用同一路径，重启不会丢失有效预览。保留期 `PREVIEW_TTL_HOURS=24`；scheduler 每 5 分钟清理过期 PDF、记录和关联任务事件。生成用 DOCX 快照在任务终态后清除。转换默认超时 120 秒，排队或运行超过 10 分钟标记失败，可以重试。修改字体或转换器后应同步增加 `PREVIEW_RENDERER_REVISION`，使旧缓存失效。
+新增预览指纹固定包含 ONLYOFFICE 引擎标识，旧引擎结果不会被新请求复用。默认 `PREVIEW_STORAGE=local`，PDF 保存到项目 `.local/previews/`（容器 application profile 使用共享 `preview_data` 卷），API、worker、scheduler 使用同一路径，重启不会丢失有效预览。保留期 `PREVIEW_TTL_HOURS=24`；scheduler 每 5 分钟清理过期 PDF、记录和关联任务事件。生成用 DOCX 快照在任务终态后清除。转换默认超时 120 秒，排队或运行超过 10 分钟标记失败，可以重试。修改字体或转换器后应同步增加 `PREVIEW_RENDERER_REVISION`，使旧缓存失效。
 
-本机开发需自行安装 LibreOffice，并将 `LIBREOFFICE_BINARY` 指向 `soffice` 可执行文件；API、worker 和定时清理进程共用 `PREVIEW_DIRECTORY`。定时清理命令：
+本机开发的 `make infra` 同时启动 Docs，`ONLYOFFICE_URL=http://127.0.0.1:18082`；Compose 内自动改为 `http://onlyoffice:80`。后端通过 `/converter/from-file` 上传 DOCX，JWT 携带转换参数，异步轮询取得 PDF，不需要暴露源文件下载 URL。转换结果限制 32 MB，服务错误或超时直接使任务失败，不回退其他转换器。API、worker 和定时清理进程共用 `PREVIEW_DIRECTORY`。`make up` 已启动定时清理进程；只有前台分终端调试时才单独运行：
 
 ```bash
-cd backend
-uv run celery -A app.worker:celery_app beat --loglevel=INFO --schedule=/tmp/contract-preview-beat
+make scheduler
 ```
 
-设置 `PREVIEW_STORAGE=s3` 后使用已有 MinIO 配置，仅操作 `document-previews/` 下生成的对象，不创建 bucket。当前实测使用本地共享卷；MinIO 预览读写未验证。版本控制 bucket 的历史版本保留期应由其生命周期配置管理，应用删除当前对象不会清除旧版本。
+设置 `PREVIEW_STORAGE=s3` 后使用已有 MinIO 配置，仅操作 `document-previews/` 下生成的对象，不创建 bucket。当前实测使用本机共享目录；MinIO 预览读写未验证。版本控制 bucket 的历史版本保留期应由其生命周期配置管理，应用删除当前对象不会清除旧版本。
 
-容器目前使用 Noto CJK 替代模板中的宋体、楷体等字体。已核对中文、表格、合计与页脚可以正确显示，但 LibreOffice 与 Microsoft Word 的字体度量和排版存在差异，不保证与业务方 Word 的页数完全相同。部署前若要求固定版式，须提供获授权的原字体并用业务样本核对。后台原文件的黄色标记及字段识别规则保留；完整 PDF 预览不显示黄色高亮，未授权空位及正文保持不变，PDF 中不可编辑。
+字体放在项目 `.local/onlyoffice/fonts/`（或通过 `ONLYOFFICE_FONTS_DIRECTORY` 指定绝对路径），以只读方式挂载至 Docs。字体不随源码分发；本机已经迁入原验证环境的中文字体与 WPS 字体。新环境需要自行放入获授权的字体文件。添加字体后执行 `docker compose --env-file .env -f deploy/compose.yaml restart onlyoffice`，服务启动时会重建索引；等待健康检查通过，再递增 `PREVIEW_RENDERER_REVISION` 并运行 `make restart`。Docs 的数据、缓存、日志和内置数据库分别持久化到独立数据卷。
 
-验证记录见 `docs/verification/contract-preview/README.md`。
+当前真实合同转换为 9 页，但已确认与本机 WPS 的标题位置、表格断页和字体存在差异；切换转换引擎不等于通过 WPS 版式一致性验收。原文件的黄色标记及字段识别规则保留，完整 PDF 预览不显示黄色高亮，模板原件不变。
+
+当前转换验证见 `docs/verification/onlyoffice/README.md`，历史阅读器验证见 `docs/verification/contract-preview/README.md`。
 
 
 预览页右上角提供“下载 PDF”，文件名采用当前预览的合同名称。下载读取当前预览快照，不重新查询 OA、不覆盖缓存或后台原模板；预览尚未就绪时按钮不可用，过期及下载错误在预览页内提示。下载副本使用 pikepdf 的 AES-256 权限设置：空用户密码可直接打开，随机所有者密码不对外提供；禁止正文编辑、批注、表单修改及页面重组，允许阅读、复制与打印。这些是 PDF 阅读软件执行的权限标记，不是绝对防篡改或数字签名；原始预览内容不被重排。
@@ -309,9 +323,9 @@ uv run celery -A app.worker:celery_app beat --loglevel=INFO --schedule=/tmp/cont
 
 ## 统一身份认证（2026-10-22）
 
-已按配置验收清单接入 `company-dev` Realm。请使用 **http://127.0.0.1:15173/**，不要替换为 localhost。未登录访问系统会直接跳转统一认证平台，无中间登录确认页。`/callback` 为登录回调，退出后回到 `/` 并自动转到统一认证登录；认证异常停留在错误提示，不自动循环重试。dev 示例域名未注册，不视为可用部署地址。
+已按配置验收清单接入 `company-dev` Realm。请使用 **http://127.0.0.1:15173/**，不要替换为 localhost。未登录访问系统会直接跳转统一认证平台，无中间登录确认页。`/callback` 为登录回调，退出后回到登录入口，由用户点击重新登录；认证失效或失败后停止自动跳转，避免循环重试。dev 示例域名未注册，不视为可用部署地址。
 
-- 前端：`oidc-client-ts` 通过 Discovery 发现端点，Authorization Code + PKCE S256。Access/Refresh Token 只放内存；sessionStorage 只保留短期登录事务。刷新页面后重新通过统一认证登录，已有 SSO 会话通常无需再次输入凭据。
+- 前端：`oidc-client-ts` 通过 Discovery 发现端点，Authorization Code + PKCE S256。Access/Refresh Token 与 PKCE 登录事务保存在当前标签页的 sessionStorage，按浏览器标签页会话生命周期管理，不写入 localStorage。刷新时先恢复会话，临近过期时通过同一续期任务更新令牌，再调用 `/auth/me` 校验身份与权限；有效会话无需重新进入认证回调。退出、401 或续期失败会清除会话并停止自动认证，用户可手动重试。后台与请求触发的续期共用同一任务，避免并发更新 Refresh Token。
 - 后端：`app/auth.py` 校验 RS256 签名、issuer、exp、aud 包含 `marketing-contract-drafting-api`、Bearer Token 类型和 API Client 下的角色。JWKS 缓存并支持新签名密钥拉取；服务不可用时拒绝授权，不降级放行。业务接口中仅存活探针和公开认证配置无需 Token；API 文档与 OpenAPI Schema 仍可公开读取，不包含凭据或业务数据。
 - 身份：使用 `sub`；部门字段允许为空，不推断部门或自行授予角色。前端用户信息与权限来自已验签的 `/api/v1/auth/me`。
 - 角色：三种默认角色均可起草、查询和读取共享模板；模板上传、删除、封面/字段配置、原文件下载、服务诊断和示例任务创建限 `agent_admin`。管理层不会自动获得其他用户的预览文件。
@@ -333,3 +347,7 @@ RUN_INTEGRATION=1 uv run pytest tests/test_document_preview_integration.py -q
 ```
 
 后台账号密码、统一认证管理 API 及 Keycloak 配置变更不在应用代码中实现。测试不会自动创建用户或修改组织角色。
+
+## 测试服务器
+
+测试环境访问地址：`http://10.8.8.16:15173/`，根目录 `/home/liyuanxin/marketing-contract-drafting`。独立 Compose 项目、目录约束、认证登记和运维命令见 [测试部署说明](deploy/test/README.md)。

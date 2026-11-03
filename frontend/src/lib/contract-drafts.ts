@@ -1,5 +1,6 @@
 import { api } from './api'
 import type { OaSummary } from './oa'
+import type { PaymentTerm } from './payment-terms'
 
 export interface BoundNode {
   type: string
@@ -17,6 +18,7 @@ export interface DraftInput {
   revision: string
   source: OaSummary | null
   contract_name: string
+  payment_terms: Record<string, Pick<PaymentTerm, 'id' | 'percentage'>[]>
   remarks: Record<string, string>
   fields: Record<string, string>
 }
