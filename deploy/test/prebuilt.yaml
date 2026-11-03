@@ -1,0 +1,6 @@
+# Optional fallback: frontend/dist was built and checked on the development machine.
+services:
+  frontend:
+    build:
+      context: ../../.runtime/frontend-package
+      dockerfile: Dockerfile

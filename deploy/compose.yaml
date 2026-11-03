@@ -11,9 +11,30 @@ x-backend: &backend
     DATABASE_URL: postgresql+psycopg://contract:contract_dev@postgres:5432/contract_drafting
     REDIS_URL: redis://redis:6379/0
     PREVIEW_DIRECTORY: /var/lib/contract-previews
+    ONLYOFFICE_URL: http://onlyoffice:80
+    ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?Set ONLYOFFICE_JWT_SECRET in .env}
   volumes: ["preview_data:/var/lib/contract-previews"]
 
 services:
+  onlyoffice:
+    image: onlyoffice/documentserver:10.0
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?Set ONLYOFFICE_JWT_SECRET in .env}
+    ports: ["127.0.0.1:18082:80"]
+    volumes:
+      - ${ONLYOFFICE_FONTS_DIRECTORY:-../.local/onlyoffice/fonts}:/usr/share/fonts/truetype/custom:ro
+      - onlyoffice_data:/var/www/onlyoffice/Data
+      - onlyoffice_cache:/var/lib/onlyoffice
+      - onlyoffice_logs:/var/log/onlyoffice
+      - onlyoffice_db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/healthcheck | grep -qx true"]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 30
+    restart: unless-stopped
   postgres:
     image: postgres:17-alpine
     environment:
@@ -38,11 +59,13 @@ services:
       timeout: 3s
       retries: 20
   migrate:
+    profiles: ["application"]
     <<: *backend
     command: ["alembic", "upgrade", "head"]
     depends_on:
       postgres: { condition: service_healthy }
   api:
+    profiles: ["application"]
     <<: *backend
     ports: ["127.0.0.1:18400:8000"]
     depends_on:
@@ -54,18 +77,22 @@ services:
       timeout: 3s
       retries: 20
   worker:
+    profiles: ["application"]
     <<: *backend
     command: ["celery", "-A", "app.worker:celery_app", "worker", "--loglevel=INFO", "--concurrency=2"]
     depends_on:
+      onlyoffice: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
   scheduler:
+    profiles: ["application"]
     <<: *backend
     command: ["celery", "-A", "app.worker:celery_app", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
   frontend:
+    profiles: ["application"]
     build:
       context: ../frontend
     environment:
@@ -91,3 +118,7 @@ volumes:
   postgres_data:
   redis_data:
   preview_data:
+  onlyoffice_data:
+  onlyoffice_cache:
+  onlyoffice_logs:
+  onlyoffice_db:

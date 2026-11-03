@@ -1,70 +1,89 @@
-"""Bounded, isolated LibreOffice conversion; no HTTP or database responsibilities."""
+"""ONLYOFFICE Docs 10 conversion with authenticated uploads and bounded polling."""
 
-import os
-import signal
-import subprocess
-from pathlib import Path
-from tempfile import TemporaryDirectory
+import json
+import time
+import uuid
+
+import httpx
+import jwt
 
 from app.core.config import get_settings
 from app.preview_files import MAX_PDF_BYTES
 
 
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise ValueError("合同排版超时，请重试")
+    return remaining
+
+
 def convert_pdf(docx: bytes) -> bytes:
     settings = get_settings()
-    with TemporaryDirectory(prefix="contract-render-") as directory:
-        root = Path(directory)
-        source = root / "contract.docx"
-        source.write_bytes(docx)
-        profile = root / "profile"
-        (profile / "user").mkdir(parents=True)
-        # No macros or external-link updates in an unattended document renderer.
-        (profile / "user" / "registrymodifications.xcu").write_text(
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<oor:items xmlns:oor="http://openoffice.org/2001/registry">'
-            '<item oor:path="/org.openoffice.Office.Common/Security/Scripting">'
-            '<prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item>'
-            '<item oor:path="/org.openoffice.Office.Writer/Content/Update">'
-            '<prop oor:name="Link" oor:op="fuse"><value>2</value></prop></item></oor:items>',
-            encoding="utf-8",
-        )
-        command = [
-            settings.libreoffice_binary,
-            f"-env:UserInstallation={profile.as_uri()}",
-            "--headless",
-            "--nologo",
-            "--nodefault",
-            "--norestore",
-            "--convert-to",
-            "pdf:writer_pdf_Export",
-            "--outdir",
-            directory,
-            str(source),
-        ]
-        try:
-            process = subprocess.Popen(
-                command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-        except FileNotFoundError as exc:
-            raise ValueError("PDF 转换服务未安装 LibreOffice") from exc
-        try:
-            process.wait(timeout=settings.preview_timeout_seconds)
-        except subprocess.TimeoutExpired as exc:
-            raise ValueError("合同排版超时，请重试") from exc
-        finally:
-            # Also handles Celery's soft time limit; do not leave soffice children behind.
-            if process.poll() is None:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
-        target = root / "contract.pdf"
-        if process.returncode != 0 or not target.exists():
-            raise ValueError("合同 PDF 转换失败，请检查模板格式")
-        if target.stat().st_size > MAX_PDF_BYTES:
-            raise ValueError("预览文件超过 32 MB 限制")
-        data = target.read_bytes()
-        if not data.startswith(b"%PDF-"):
-            raise ValueError("转换未产生有效的 PDF 文件")
-        return data
+    secret = settings.onlyoffice_jwt_secret.get_secret_value()
+    if not secret:
+        raise ValueError("ONLYOFFICE 转换服务未配置 JWT 密钥")
+    key = uuid.uuid4().hex
+    params = {
+        "operation": "converter",
+        "async": True,
+        "key": key,
+        "filetype": "docx",
+        "outputtype": "pdf",
+        "title": "contract.docx",
+        "exp": int(time.time()) + settings.preview_timeout_seconds + 30,
+    }
+    token = jwt.encode(params, secret, algorithm="HS256")
+    endpoint = f"{str(settings.onlyoffice_url).rstrip('/')}/converter/from-file"
+    deadline = time.monotonic() + settings.preview_timeout_seconds
+    first = True
+    try:
+        # Never forward contracts/JWTs through ambient proxies or response redirects.
+        with httpx.Client(trust_env=False, follow_redirects=False) as client:
+            while True:
+                files: dict[str, tuple[None, str] | tuple[str, bytes]] = {"token": (None, token)}
+                if first:
+                    files["file"] = ("contract.docx", docx)
+                with client.stream(
+                    "POST",
+                    endpoint,
+                    params={"shardkey": key},
+                    files=files,
+                    timeout=_remaining(deadline),
+                ) as response:
+                    response.raise_for_status()
+                    content = bytearray()
+                    for chunk in response.iter_bytes(chunk_size=65536):
+                        _remaining(deadline)
+                        content.extend(chunk)
+                        if len(content) > MAX_PDF_BYTES:
+                            raise ValueError("预览文件超过 32 MB 限制")
+                _remaining(deadline)
+                data = bytes(content)
+                if data.startswith(b"%PDF-"):
+                    return data
+                try:
+                    state = json.loads(data)
+                except (ValueError, UnicodeDecodeError) as exc:
+                    raise ValueError("ONLYOFFICE 未返回有效的 PDF 或转换状态") from exc
+                if not isinstance(state, dict):
+                    raise ValueError("ONLYOFFICE 返回的转换状态无效")
+                if state.get("error") is not None:
+                    # Do not expose remote response bodies, paths or tokens in task events.
+                    if state["error"] == -8:
+                        raise ValueError("ONLYOFFICE 鉴权失败，请检查 JWT 配置")
+                    raise ValueError("合同 PDF 转换失败，请检查模板格式或 ONLYOFFICE 服务")
+                if state.get("endConvert") is not False:
+                    raise ValueError("ONLYOFFICE 未返回有效的 PDF 文件")
+                first = False
+                time.sleep(min(0.5, _remaining(deadline)))
+    except httpx.TimeoutException as exc:
+        raise ValueError("合同排版超时，请重试") from exc
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code in {401, 403}:
+            raise ValueError("ONLYOFFICE 鉴权失败，请检查 JWT 配置") from exc
+        if exc.response.status_code == 413:
+            raise ValueError("合同文件超过 ONLYOFFICE 上传大小限制") from exc
+        raise ValueError("ONLYOFFICE 转换服务请求失败，请稍后重试") from exc
+    except httpx.RequestError as exc:
+        raise ValueError("无法连接 ONLYOFFICE 转换服务，请检查服务地址与运行状态") from exc

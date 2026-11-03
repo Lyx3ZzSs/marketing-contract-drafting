@@ -73,7 +73,7 @@ def create_preview(
         record_id = data.source.record.id if data.source else ""
         cache_context = f"{user.sub}:{template_id}:{document.revision}:{record_id}"
         fingerprint = hashlib.sha256(
-            docx + (cache_context + settings.preview_renderer_revision).encode()
+            docx + ("onlyoffice-10:" + cache_context + settings.preview_renderer_revision).encode()
         ).hexdigest()
         # A transaction-scoped lock collapses simultaneous requests for the same snapshot.
         session.execute(

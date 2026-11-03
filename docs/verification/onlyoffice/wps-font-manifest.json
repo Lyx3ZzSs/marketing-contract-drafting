@@ -1,0 +1,47 @@
+[
+  {
+    "file": "DejaVuMathTeXGyre.ttf",
+    "sha256": "40da67c0b6b03076504fbda4bf3e7b4f20b35999c98063019a3392fe9b1294fe",
+    "identity": "DejaVu Math TeX Gyre | DejaVuMathTeXGyre-Regular"
+  },
+  {
+    "file": "FZFSK.ttf",
+    "sha256": "ef84cfa29b89f5cb7936306ddec54819d7667fec6d028b820cf80794635c043f",
+    "identity": "FZFangSong-Z02,方正仿宋_GBK | FZFSK--GBK1-0"
+  },
+  {
+    "file": "FZSSK.ttf",
+    "sha256": "00fdbfb433aaf4c00dd02b79319bbfe94ffca399dba1be9e6455e4bb650e0273",
+    "identity": "FZShuSong-Z01,方正书宋_GBK | FZSSK--GBK1-0"
+  },
+  {
+    "file": "HYKaiTiJ.ttf",
+    "sha256": "87fac55d0c7853bed4a957b8c53a9eaa26b32bae777ad4e560ca7305c96f9d02",
+    "identity": "HYKaiTiJ,汉仪楷体简 | HYc1gj"
+  },
+  {
+    "file": "HYQiHei-55J.ttf",
+    "sha256": "03f108e90c8f543eb9278a12147ca0669d71e6a06cb4c610deea1e991695567a",
+    "identity": "HYQiHei,汉仪旗黑,HYQiHei-55J,汉仪旗黑-55简 | HYQiHei-EES"
+  },
+  {
+    "file": "HYZhongJianHeiJ.ttf",
+    "sha256": "ef91e6a2486d76901955d637b2c3c27665a87576baa34907cc1f295984b8e3e9",
+    "identity": "HYZhongJianHeiJ,汉仪中简黑简 | HYZhongJianHeiJ"
+  },
+  {
+    "file": "KingsoftExtra.ttf",
+    "sha256": "267b12a1f383c9c293034efd6ed8aa97535f8aaa9495df8de12921208dc4545d",
+    "identity": "Kingsoft Extra | KingsoftExtra"
+  },
+  {
+    "file": "KingsoftMath.ttf",
+    "sha256": "a41d7b576966a083ef05f63c0f5cbf81ef6690ddf7beeab47aa5187f0e36b5c9",
+    "identity": "Kingsoft Math | KingsoftMath"
+  },
+  {
+    "file": "KingsoftSign.ttf",
+    "sha256": "c8041f86b1ffb5503b1c47103b4a1751bf459a6f3ef4491e00136fe28662703a",
+    "identity": "Kingsoft Sign | KingsoftSign"
+  }
+]

@@ -220,6 +220,8 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Contract drafting project rules
+!/frontend/src/lib/
+!/frontend/src/lib/**
 .env
 .env.*
 !.env.example
@@ -238,4 +240,8 @@ __marimo__/
 *.tsbuildinfo
 
 # Locally rendered contract verification output
+/output/
 /docs/verification/contract-preview/real-contract.pdf
+
+# Test deployment runtime, credentials, images and logs
+/.runtime/

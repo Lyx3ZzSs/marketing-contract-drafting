@@ -1,0 +1,12 @@
+FROM node:24-bookworm-slim AS build
+RUN npm install --global pnpm@11.25.0
+WORKDIR /app
+COPY package.json pnpm-lock.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile
+COPY . .
+ARG VITE_ALLOW_HTTP_OIDC=false
+ENV VITE_ALLOW_HTTP_OIDC=$VITE_ALLOW_HTTP_OIDC
+RUN pnpm build
+
+FROM nginx:1.28-alpine
+COPY --from=build /app/dist /usr/share/nginx/html

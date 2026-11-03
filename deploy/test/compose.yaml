@@ -1,0 +1,122 @@
+name: marketing-contract-test
+
+x-logging: &logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  build:
+    context: ../../backend
+  image: marketing-contract-backend:test
+  env_file: ../../.runtime/test.env
+  environment:
+    APP_ENV: test
+    PREVIEW_STORAGE: local
+    PREVIEW_DIRECTORY: /project-data/previews
+    ONLYOFFICE_URL: http://onlyoffice:80
+    ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?Set ONLYOFFICE_JWT_SECRET in .runtime/test.env}
+    TMPDIR: /project-data/tmp
+    XDG_CACHE_HOME: /project-data/cache
+  volumes:
+    - ../../.runtime/previews:/project-data/previews
+    - ../../.runtime/tmp:/project-data/tmp
+    - ../../.runtime/cache:/project-data/cache
+    - ../../.runtime/logs:/project-logs
+  logging: *logging
+  restart: unless-stopped
+
+services:
+  onlyoffice:
+    image: onlyoffice/documentserver:10.0
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:?Set ONLYOFFICE_JWT_SECRET in .runtime/test.env}
+    volumes:
+      - ../../.runtime/onlyoffice/fonts:/usr/share/fonts/truetype/custom:ro
+      - ../../.runtime/onlyoffice/data:/var/www/onlyoffice/Data
+      - ../../.runtime/onlyoffice/cache:/var/lib/onlyoffice
+      - ../../.runtime/onlyoffice/logs:/var/log/onlyoffice
+      - ../../.runtime/onlyoffice/db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/healthcheck | grep -qx true"]
+      interval: 10s
+      timeout: 5s
+      start_period: 120s
+      retries: 30
+    restart: unless-stopped
+    logging: *logging
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: contract_drafting
+      POSTGRES_USER: contract
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .runtime/test.env}
+    volumes:
+      - ../../.runtime/postgres:/var/lib/postgresql/data
+    command: ["postgres", "-c", "logging_collector=on", "-c", "log_directory=log", "-c", "log_filename=postgres-%a.log", "-c", "log_truncate_on_rotation=on"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contract -d contract_drafting"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    logging: *logging
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--logfile", "/data/redis.log"]
+    volumes: ["../../.runtime/redis:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    logging: *logging
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["sh", "-c", "exec alembic upgrade head >> /project-logs/migrate.log 2>&1"]
+    depends_on:
+      postgres: { condition: service_healthy }
+  api:
+    <<: *backend
+    command: ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port 8000 >> /project-logs/api.log 2>&1"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  worker:
+    <<: *backend
+    command: ["sh", "-c", "exec celery -A app.worker:celery_app worker --loglevel=INFO --concurrency=2 >> /project-logs/worker.log 2>&1"]
+    depends_on:
+      onlyoffice: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+  scheduler:
+    <<: *backend
+    command: ["sh", "-c", "exec celery -A app.worker:celery_app beat --loglevel=INFO --schedule=/project-data/cache/celerybeat-schedule >> /project-logs/scheduler.log 2>&1"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile.test
+      args:
+        VITE_ALLOW_HTTP_OIDC: "true"
+    image: marketing-contract-frontend:test
+    ports: ["15173:80"]
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../.runtime/logs/nginx:/var/log/contract
+      - ../../.runtime/nginx-cache:/var/cache/nginx
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+    logging: *logging

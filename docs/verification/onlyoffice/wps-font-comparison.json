@@ -1,0 +1,46 @@
+{
+  "pages": 9,
+  "pixel_comparison_dpi": 96,
+  "comparison": [
+    {
+      "page": 1,
+      "identical_pixels": true
+    },
+    {
+      "page": 2,
+      "identical_pixels": true
+    },
+    {
+      "page": 3,
+      "identical_pixels": true
+    },
+    {
+      "page": 4,
+      "identical_pixels": true
+    },
+    {
+      "page": 5,
+      "identical_pixels": true
+    },
+    {
+      "page": 6,
+      "identical_pixels": true
+    },
+    {
+      "page": 7,
+      "identical_pixels": true
+    },
+    {
+      "page": 8,
+      "identical_pixels": true
+    },
+    {
+      "page": 9,
+      "identical_pixels": true
+    }
+  ],
+  "heading_pages": [
+    2,
+    9
+  ]
+}

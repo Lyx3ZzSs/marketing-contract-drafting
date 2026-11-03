@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import AnyHttpUrl, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,11 +32,12 @@ class Settings(BaseSettings):
     s3_use_tls: bool = True
     s3_verify_tls: bool = True
     preview_storage: Literal["local", "s3"] = "local"
-    preview_directory: Path = Path("/tmp/contract-previews")
+    preview_directory: Path = Path(__file__).resolve().parents[3] / ".local" / "previews"
     preview_ttl_hours: int = Field(default=24, ge=1, le=168)
     preview_timeout_seconds: int = Field(default=120, ge=10, le=120)
-    preview_renderer_revision: str = "libreoffice-noto-cjk-v1"
-    libreoffice_binary: str = "soffice"
+    preview_renderer_revision: str = "onlyoffice-10.0-v1"
+    onlyoffice_url: AnyHttpUrl = AnyHttpUrl("http://127.0.0.1:18082")
+    onlyoffice_jwt_secret: SecretStr = SecretStr("")
     crm_mode: Literal["demo"] = "demo"
     llm_enabled: Literal[False] = False
     oa_host: str = ""

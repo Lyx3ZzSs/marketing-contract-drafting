@@ -15,4 +15,4 @@ cd "$(dirname "$0")/.."
   pnpm test
   pnpm build
 )
-docker compose -f deploy/compose.yaml config --quiet
+docker compose --env-file .env.example -f deploy/compose.yaml config --quiet

@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "pages": 10,
+  "seconds": 2.267,
+  "source_sha256": "094d95c7471ba6295ca7f0d41fe587518c37d584c410eb398846cd17d62463f8",
+  "bytes": 277991,
+  "real_celery_worker": true,
+  "real_onlyoffice": true,
+  "api_auth": "in-process test identity; live API authentication unchanged",
+  "checks": [
+    "field binding",
+    "queue",
+    "conversion",
+    "deduplication",
+    "storage",
+    "inline PDF",
+    "download permissions",
+    "SSE completed",
+    "source snapshot cleanup",
+    "original template unchanged"
+  ]
+}

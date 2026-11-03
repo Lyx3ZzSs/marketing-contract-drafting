@@ -9,10 +9,14 @@ from test_contract_drafts import source
 from test_contract_drafts import template as template  # noqa: F401
 
 from app.contract_document import W, package_preview_document, text
-from app.contract_drafts import DraftInput, catalog, prepare_document, render_preview
+from app.contract_drafts import (
+    DraftInput,
+    catalog,
+    prepare_document,
+    render_preview,
+)
 from app.core.config import Settings
 from app.models import ContractTemplate
-from app.pdf_converter import convert_pdf
 from app.preview_files import delete_pdf, read_pdf, write_pdf
 from app.station_names import WIND_COVER
 
@@ -104,12 +108,3 @@ def test_local_pdf_lifecycle_and_path_restrictions(
         write_pdf("local", "../../other.pdf", data)
     with pytest.raises(ValueError):
         write_pdf("local", key, b"not-pdf")
-
-
-def test_converter_missing_binary_is_actionable(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.pdf_converter.get_settings",
-        lambda: Settings(_env_file=None, libreoffice_binary="/no-such-soffice"),
-    )
-    with pytest.raises(ValueError, match="未安装 LibreOffice"):
-        convert_pdf(b"input")

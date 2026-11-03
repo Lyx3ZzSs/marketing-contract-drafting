@@ -1,0 +1,89 @@
+{
+  "criterion": "相同 DOCX 在本机 WPS 新导出 PDF 与 ONLYOFFICE PDF 的可见排版一致；模板美观不作为前置条件",
+  "source_sha256": "9311a75eb896351d493b1901852a6fd702ad06b913e7a4ab1366f481cf954d52",
+  "result": "not_equal",
+  "outputs": {
+    "wps": {
+      "path": "output/pdf/wps-same-source-contract.pdf",
+      "sha256": "05fc10d339afdd85f341899ad3b17c27cdd45490dca78eb703b6cf922a154303",
+      "pages": 9,
+      "sections": {
+        "正文": 3,
+        "三、甲方义务": 4,
+        "七、验收标准及品质保证": 5,
+        "十一、保密": 7,
+        "十四、其他": 8
+      },
+      "footers": [
+        "共9页第1页",
+        "共9页第2页",
+        "共9页第3页",
+        "共9页第4页",
+        "共9页第5页",
+        "共9页第6页",
+        "共9页第7页",
+        "共9页第8页",
+        "共9页第9页"
+      ],
+      "cover_table_bbox_pt": [
+        92.95,
+        499.39,
+        502.35,
+        626.19
+      ],
+      "cover_table_height_pt": 126.8,
+      "fonts": [
+        "HYQiHei-EES",
+        "HYShuSongErKW",
+        "HYZhongHeiKW",
+        "PingFangSC-Regular",
+        "TimesNewRomanPS-BoldMT",
+        "TimesNewRomanPSMT"
+      ]
+    },
+    "onlyoffice": {
+      "path": "output/pdf/onlyoffice-real-contract-wps-fonts.pdf",
+      "sha256": "634dc95cc905e5f47588c8ed45d6985039d8b71c393ee9928253217de50f3c55",
+      "pages": 9,
+      "sections": {
+        "正文": 2,
+        "三、甲方义务": 5,
+        "七、验收标准及品质保证": 6,
+        "十一、保密": 8,
+        "十四、其他": 8
+      },
+      "footers": [
+        "共9页第1页",
+        "共9页第2页",
+        "共9页第3页",
+        "共9页第4页",
+        "共9页第5页",
+        "共9页第6页",
+        "共9页第7页",
+        "共9页第8页",
+        "共9页第9页"
+      ],
+      "cover_table_bbox_pt": [
+        92.94999,
+        438.50905000000006,
+        502.34998,
+        513.30906
+      ],
+      "cover_table_height_pt": 74.8,
+      "fonts": [
+        "Noto Sans KR-Bold",
+        "SimHei-Bold",
+        "SimSun",
+        "TakaoPGothic",
+        "Times New Roman",
+        "Times New Roman-Bold"
+      ]
+    }
+  },
+  "limitations": [
+    "WPS 为本机 macOS 版本，未测 Windows WPS",
+    "WPS UI 导出未准确计时；ONLYOFFICE 最近实测1.081秒",
+    "真实样本无页眉，既有页眉实验仅覆盖人工添加的简单默认页眉",
+    "字体环境不同与引擎排版差异尚未通过单变量实验完全分离"
+  ]
+}
