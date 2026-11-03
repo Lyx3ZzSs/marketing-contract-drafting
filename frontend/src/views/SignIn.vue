@@ -8,17 +8,18 @@ const route = useRoute()
 const router = useRouter()
 const busy = ref(false)
 const error = ref('')
-async function signIn() {
+async function signIn(automatic = false) {
   busy.value = true
   error.value = ''
-  try { await login(route.query.returnTo) }
+  try { await login(route.query.returnTo, { automatic }) }
   catch (e) { error.value = e instanceof Error ? e.message : '登录失败，请重试'; busy.value = false }
 }
 onMounted(async () => {
   if (route.path === '/forbidden' || auth.error) return
   if (route.path !== '/callback') {
     if (auth.identity) await router.replace(safeReturnPath(route.query.returnTo))
-    else await signIn()
+    else if (auth.loginNotice) error.value = auth.loginNotice
+    else await signIn(true)
     return
   }
   busy.value = true
@@ -45,7 +46,7 @@ onMounted(async () => {
         <RouterLink to="/">返回合同起草</RouterLink>
         <button type="button" @click="logout">退出登录</button>
       </template>
-      <button v-else-if="!auth.error" type="button" :disabled="busy" @click="signIn">
+      <button v-else-if="!auth.error" type="button" :disabled="busy" @click="signIn()">
         <LogIn :size="18" />{{ busy ? '正在跳转…' : '重新登录' }}
       </button>
       <button v-if="auth.hasSession && !auth.identity" type="button" class="auth-secondary" @click="logout">退出当前认证账号</button>

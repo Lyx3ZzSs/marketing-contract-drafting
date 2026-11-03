@@ -1,0 +1,42 @@
+[
+  {
+    "time": "2026-11-02T09:23:48.723068+00:00",
+    "path": "/api/v1/auth/config",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:48.746881+00:00",
+    "path": "/api/v1/auth/me",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:49.603659+00:00",
+    "path": "/api/v1/auth/config",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:49.632011+00:00",
+    "path": "/api/v1/auth/me",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:50.531548+00:00",
+    "path": "/api/v1/auth/config",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:50.543673+00:00",
+    "path": "/api/v1/auth/me",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:52.535483+00:00",
+    "path": "/api/v1/auth/config",
+    "status_code": 200
+  },
+  {
+    "time": "2026-11-02T09:23:52.560983+00:00",
+    "path": "/api/v1/auth/me",
+    "status_code": 200
+  }
+]

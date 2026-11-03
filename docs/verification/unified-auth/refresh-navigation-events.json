@@ -1,0 +1,170 @@
+[
+  {
+    "time": "2026-11-02T08:59:54.034Z",
+    "event": "pagehide",
+    "detail": "",
+    "path": "/",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.109Z",
+    "event": "boot",
+    "detail": "reload",
+    "path": "/",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.225Z",
+    "event": "pageshow",
+    "detail": "false",
+    "path": "/",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.290Z",
+    "event": "signin-redirect",
+    "detail": "",
+    "path": "/login",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.384Z",
+    "event": "pagehide",
+    "detail": "",
+    "path": "/login",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.407Z",
+    "event": "boot",
+    "detail": "navigate",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.461Z",
+    "event": "pageshow",
+    "detail": "false",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.522Z",
+    "event": "callback-start",
+    "detail": "",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.557Z",
+    "event": "callback-token",
+    "detail": "900",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.557Z",
+    "event": "identity-start",
+    "detail": "900",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.591Z",
+    "event": "identity-status",
+    "detail": "200",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:54.605Z",
+    "event": "identity-ready",
+    "detail": "",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:56.730Z",
+    "event": "pagehide",
+    "detail": "",
+    "path": "/",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:56.767Z",
+    "event": "boot",
+    "detail": "reload",
+    "path": "/",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:56.828Z",
+    "event": "pageshow",
+    "detail": "false",
+    "path": "/",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:56.881Z",
+    "event": "signin-redirect",
+    "detail": "",
+    "path": "/login",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:56.952Z",
+    "event": "pagehide",
+    "detail": "",
+    "path": "/login",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:56.974Z",
+    "event": "boot",
+    "detail": "navigate",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:57.011Z",
+    "event": "pageshow",
+    "detail": "false",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:57.042Z",
+    "event": "callback-start",
+    "detail": "",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:57.082Z",
+    "event": "callback-token",
+    "detail": "900",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:57.082Z",
+    "event": "identity-start",
+    "detail": "900",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:57.099Z",
+    "event": "identity-status",
+    "detail": "200",
+    "path": "/callback",
+    "frame": "top"
+  },
+  {
+    "time": "2026-11-02T08:59:57.100Z",
+    "event": "identity-ready",
+    "detail": "",
+    "path": "/callback",
+    "frame": "top"
+  }
+]
